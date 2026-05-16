@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Canada 2026 个人所得税计算器 · Ontario</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0f1923;
+    --ink2: #2a3a4a;
+    --ink3: #5a6a7a;
+    --paper: #f7f4ef;
+    --paper2: #ede9e1;
+    --paper3: #e0dbd0;
+    --accent: #c84b2f;
+    --accent2: #e8703a;
+    --blue: #1e4d8c;
+    --blue2: #2e6dbf;
+    --blue-light: #e8f0fa;
+    --purple: #6b3fa0;
+    --purple-light: #f0eaf8;
+    --green: #1a5c3a;
+    --green-light: #e4f2ea;
+    --amber: #b45309;
+    --amber-light: #fef3c7;
+    --red-light: #fdecea;
+    --border: #d4cfc5;
+    --shadow: 0 2px 8px rgba(15,25,35,0.08);
+    --shadow-lg: 0 8px 32px rgba(15,25,35,0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  /* ── Layout ── */
+  .page-wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 24px 60px;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--ink);
+    color: white;
+    padding: 0;
+    margin-bottom: 32px;
+  }
+  .header-inner {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 28px 24px 24px;
+    display: flex;
+    align-items: flex-end;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .header-title {
+    flex: 1;
+    min-width: 260px;
+  }
+  .header-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent2);
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .header-h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(22px, 3vw, 32px);
+    font-weight: 400;
+    line-height: 1.15;
+    color: white;
+  }
+  .header-sub {
+    font-size: 13px;
+    color: #a0aab5;
+    margin-top: 6px;
+  }
+  .header-badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-self: center;
+  }
+  .badge {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+  .badge-fed { background: var(--blue); color: white; }
+  .badge-on  { background: var(--purple); color: white; }
+  .badge-yr  { background: #2a3a4a; color: #c0cad5; border: 1px solid #3a4a5a; }
+
+  /* ── Grid ── */
+  .grid {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── Card ── */
+  .card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .card-head {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card-head-icon {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .card-head-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink2);
+  }
+  .card-body { padding: 20px; }
+
+  /* ── Inputs ── */
+  .input-group { margin-bottom: 18px; }
+  .input-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink3);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: block;
+  }
+  .input-wrap {
+    position: relative;
+  }
+  .input-prefix {
+    position: absolute;
+    left: 12px; top: 50%; transform: translateY(-50%);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    color: var(--ink3);
+    pointer-events: none;
+  }
+  .input-field {
+    width: 100%;
+    padding: 11px 12px 11px 28px;
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .input-field:focus {
+    border-color: var(--blue2);
+    box-shadow: 0 0 0 3px rgba(46,109,191,0.12);
+    background: white;
+  }
+  .input-hint {
+    font-size: 11px;
+    color: var(--ink3);
+    margin-top: 4px;
+  }
+  .input-divider {
+    height: 1px;
+    background: var(--paper3);
+    margin: 20px 0;
+  }
+
+  /* ── Results ── */
+  .results-col {}
+
+  /* Summary cards row */
+  .summary-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 700px) { .summary-row { grid-template-columns: repeat(2,1fr); } }
+
+  .sum-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+  }
+  .sum-card-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink3);
+    margin-bottom: 4px;
+  }
+  .sum-card-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    line-height: 1.1;
+  }
+  .sum-card-sub {
+    font-size: 11px;
+    color: var(--ink3);
+    margin-top: 2px;
+  }
+  .sum-total { background: var(--ink); border-color: var(--ink); }
+  .sum-total .sum-card-label { color: #7a8a9a; }
+  .sum-total .sum-card-value { color: var(--accent2); }
+  .sum-total .sum-card-sub { color: #7a8a9a; }
+
+  /* ── Section tabs ── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 0;
+  }
+  .tab {
+    padding: 10px 18px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    color: var(--ink3);
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .tab:hover { color: var(--ink2); }
+  .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .tab-panel { display: none; padding: 20px; }
+  .tab-panel.active { display: block; }
+
+  /* ── Table rows ── */
+  .trow {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--paper2);
+    transition: background 0.1s;
+  }
+  .trow:last-child { border-bottom: none; }
+  .trow.subtotal {
+    padding: 10px 12px;
+    margin: 4px -12px;
+    border-radius: 6px;
+    border-bottom: none;
+  }
+  .trow-label {
+    font-size: 13px;
+    color: var(--ink2);
+  }
+  .trow-label .trow-note {
+    font-size: 11px;
+    color: var(--ink3);
+    display: block;
+    margin-top: 1px;
+  }
+  .trow-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .val-blue { color: var(--blue); font-weight: 600; }
+  .val-purple { color: var(--purple); font-weight: 600; }
+  .val-green { color: var(--green); font-weight: 600; }
+  .val-red { color: var(--accent); font-weight: 600; }
+  .val-amber { color: var(--amber); }
+  .bg-blue { background: var(--blue-light); }
+  .bg-purple { background: var(--purple-light); }
+  .bg-green { background: var(--green-light); }
+  .bg-amber { background: var(--amber-light); }
+  .bg-red { background: var(--red-light); }
+  .bg-grey { background: var(--paper); }
+  .trow-bold .trow-label { font-weight: 600; color: var(--ink); }
+  .trow-bold .trow-val { font-weight: 700; }
+
+  /* ── Bracket bar ── */
+  .bracket-section { margin: 12px 0; }
+  .bracket-item {
+    display: grid;
+    grid-template-columns: 150px 44px 1fr 80px;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    font-size: 12px;
+  }
+  .bracket-range { color: var(--ink3); font-family: 'DM Mono', monospace; font-size: 11px; }
+  .bracket-rate {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: right;
+  }
+  .bracket-bar-wrap {
+    background: var(--paper2);
+    border-radius: 3px;
+    height: 8px;
+    overflow: hidden;
+  }
+  .bracket-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s cubic-bezier(.4,0,.2,1);
+  }
+  .bracket-amount { font-family: 'DM Mono', monospace; font-size: 11px; text-align: right; color: var(--ink2); }
+  .bracket-item.active-bracket { background: var(--amber-light); border-radius: 6px; padding: 5px 6px; margin: 0 -6px; }
+  .bracket-item.active-bracket .bracket-rate { color: var(--amber); }
+
+  /* ── Deduction pill ── */
+  .deduction-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 8px 0;
+  }
+  .dpill {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 600;
+    border: 1.5px solid;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .dpill-label { opacity: 0.75; font-weight: 400; }
+
+  /* ── Gauge ── */
+  .gauge-wrap {
+    margin: 16px 0 8px;
+    position: relative;
+  }
+  .gauge-track {
+    height: 14px;
+    background: var(--paper2);
+    border-radius: 7px;
+    overflow: hidden;
+    display: flex;
+  }
+  .gauge-seg {
+    height: 100%;
+    transition: width 0.5s cubic-bezier(.4,0,.2,1);
+    position: relative;
+  }
+  .gauge-seg-fed { background: var(--blue2); }
+  .gauge-seg-on  { background: var(--purple); }
+  .gauge-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--ink3);
+  }
+
+  /* ── Footer ── */
+  .disclaimer {
+    margin-top: 24px;
+    padding: 14px 18px;
+    background: var(--amber-light);
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    font-size: 11.5px;
+    color: #78350f;
+    line-height: 1.6;
+  }
+  .disclaimer strong { color: #92400e; }
+
+  /* ── Tab tooltip ── */
+  .tab-wrap { position: relative; display: inline-block; }
+  .tab-wrap .tab-tip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: white;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;
+    padding: 5px 10px;
+    border-radius: 6px;
+    pointer-events: none;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+  .tab-wrap .tab-tip::after {
+    content: '';
+    position: absolute;
+    top: 100%; left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--ink);
+  }
+  .tab-wrap:hover .tab-tip { display: block; }
+
+  /* ── Payroll inline inputs ── */
+  .payroll-input {
+    width: 110px;
+    padding: 6px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    outline: none;
+    text-align: right;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .payroll-input:focus {
+    border-color: var(--blue2);
+    box-shadow: 0 0 0 3px rgba(46,109,191,0.12);
+    background: white;
+  }
+
+  /* ── Animate on update ── */
+  @keyframes flash {
+    0% { opacity: 0.4; } 100% { opacity: 1; }
+  }
+  .updating { animation: flash 0.25s ease; }
+
+  /* ── RRSP optimizer ── */
+  .optimizer-box {
+    background: var(--green-light);
+    border: 1px solid #86efac;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-top: 12px;
+  }
+  .optimizer-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--green);
+    margin-bottom: 6px;
+  }
+  .optimizer-text { font-size: 13px; color: var(--ink2); line-height: 1.5; }
+  .optimizer-highlight { font-weight: 700; color: var(--green); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="header-title">
+      <div class="header-eyebrow">Personal Income Tax · Canada Revenue Agency</div>
+      <h1 class="header-h1">2026 个人所得税<br>动态计算器</h1>
+      <p class="header-sub">实时计算 · 联邦税 + 安省税 · 含出租房收入 · <span style="font-family:'DM Mono',monospace;color:#6ab0f5">V2.1</span></p>
+    </div>
+    <div class="header-badges">
+      <span class="badge badge-yr">Tax Year 2026</span>
+      <span class="badge badge-fed">Federal</span>
+      <span class="badge badge-on">Ontario</span>
+    </div>
+  </div>
+</header>
+
+<div class="page-wrap">
+
+  <!-- Summary row -->
+  <div class="summary-row">
+    <div class="sum-card">
+      <div class="sum-card-label">应税收入</div>
+      <div class="sum-card-value val-blue" id="s-taxable">—</div>
+      <div class="sum-card-sub">Taxable Income</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-card-label">联邦税</div>
+      <div class="sum-card-value val-blue" id="s-fed">—</div>
+      <div class="sum-card-sub">Federal Tax</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-card-label">安省税</div>
+      <div class="sum-card-value val-purple" id="s-on">—</div>
+      <div class="sum-card-sub">Ontario Tax</div>
+    </div>
+    <div class="sum-card sum-total">
+      <div class="sum-card-label">合计应缴税</div>
+      <div class="sum-card-value" id="s-total">—</div>
+      <div class="sum-card-sub" id="s-eff">实际税率 —</div>
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <!-- ── LEFT: Inputs ── -->
+    <div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-head-icon" style="background:#e8f0fa">📋</div>
+          <div class="card-head-title">收入信息输入</div>
+        </div>
+        <div class="card-body">
+
+          <div class="input-group">
+            <label class="input-label">雇佣收入（T4 Box 14）</label>
+            <div class="input-wrap">
+              <span class="input-prefix">$</span>
+              <input class="input-field" id="inp-employment" type="number" value="0" step="100" min="0">
+            </div>
+            <div class="input-hint">Line 10100 · 来自雇主的工资薪酬</div>
+          </div>
+
+          <div class="input-divider"></div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:14px">出租房收入 / 支出</div>
+
+          <div class="input-group">
+            <label class="input-label">年度租金收入</label>
+            <div class="input-wrap">
+              <span class="input-prefix">$</span>
+              <input class="input-field" id="inp-rental-income" type="number" value="0" step="100" min="0">
+            </div>
+            <div class="input-hint">Line 12599 · 全年租金总收入</div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">年度出租房总支出</label>
+            <div class="input-wrap">
+              <span class="input-prefix">$</span>
+              <input class="input-field" id="inp-rental-exp" type="number" value="0" step="100" min="0">
+            </div>
+            <div class="input-hint">Line 12599 · 含mortgage利息、地税、保险、维修等</div>
+          </div>
+
+          <div class="input-divider"></div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:14px">投资收入</div>
+
+          <div class="input-group">
+            <label class="input-label">合格股息 Eligible Dividend</label>
+            <div class="input-wrap">
+              <span class="input-prefix">$</span>
+              <input class="input-field" id="inp-div-elig" type="number" value="0" step="100" min="0">
+            </div>
+            <div class="input-hint">T5 Box 24 · 上市大公司股息 · Gross-up ×1.38，联邦DTC 15.0198%，安省DTC 10%</div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">一般股息 Non-Eligible Dividend</label>
+            <div class="input-wrap">
+              <span class="input-prefix">$</span>
+              <input class="input-field" id="inp-div-non" type="number" value="0" step="100" min="0">
+            </div>
+            <div class="input-hint">T5 Box 10 · 私人小公司股息 · Gross-up ×1.15，联邦DTC 9.0301%，安省DTC 3.2863%</div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">利息收入 Interest Income</label>
+            <div class="input-wrap">
+              <span class="input-prefix">$</span>
+              <input class="input-field" id="inp-interest" type="number" value="0" step="100" min="0">
+            </div>
+            <div class="input-hint">T5 Box 13 · GIC / 储蓄账户利息 · 按普通收入全额征税，无Gross-up</div>
+          </div>
+
+          <div class="input-divider"></div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:14px">其他扣除（可选）</div>
+
+          <div class="input-group">
+            <label class="input-label">RRSP 供款</label>
+            <div class="input-wrap">
+              <span class="input-prefix">$</span>
+              <input class="input-field" id="inp-rrsp" type="number" value="0" step="100" min="0">
+            </div>
+            <div class="input-hint">Line 20800 · 2026年可用额度: $11,530</div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">其他税前扣除</label>
+            <div class="input-wrap">
+              <span class="input-prefix">$</span>
+              <input class="input-field" id="inp-other-ded" type="number" value="0" step="100" min="0">
+            </div>
+            <div class="input-hint">工会会费、搬家费等</div>
+          </div>
+
+          <div class="input-divider"></div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:14px">预扣税</div>
+
+          <div class="input-group">
+            <label class="input-label">公司预扣税（T4 Box 22）</label>
+            <div class="input-wrap">
+              <span class="input-prefix">$</span>
+              <input class="input-field" id="inp-withheld" type="number" value="0" step="100" min="0">
+            </div>
+            <div class="input-hint">Line 43700 · 雇主全年已代扣所得税，用于计算退税/补税</div>
+          </div>
+
+          <!-- RRSP optimizer -->
+          <div class="optimizer-box" id="rrsp-box">
+            <div class="optimizer-label">💡 RRSP 节税提示</div>
+            <div class="optimizer-text" id="rrsp-hint">—</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ── RIGHT: Results ── -->
+    <div class="results-col">
+      <div class="card">
+        <div class="tabs">
+          <div class="tab-wrap">
+            <div class="tab active" onclick="switchTab('income')">收入 &amp; 扣除</div>
+          </div>
+          <div class="tab-wrap">
+            <div class="tab" onclick="switchTab('federal')">联邦税</div>
+          </div>
+          <div class="tab-wrap">
+            <div class="tab" onclick="switchTab('ontario')">安省税</div>
+          </div>
+          <div class="tab-wrap">
+            <div class="tab" onclick="switchTab('payroll')">工资代扣
+              <span class="tab-tip">✏️ 此标签页需要输入 T4 实际金额</span>
+            </div>
+          </div>
+          <div class="tab-wrap">
+            <div class="tab" onclick="switchTab('expenses')">其他支出
+              <span class="tab-tip">✏️ 此标签页需要输入个人支出金额</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── INCOME TAB ── -->
+        <div class="tab-panel active" id="tab-income">
+          <div class="trow">
+            <div class="trow-label">雇佣收入 <span class="trow-note">Employment Income · Line 10100</span></div>
+            <div class="trow-val" id="r-employment">—</div>
+          </div>
+          <div class="trow bg-grey" style="border-radius:4px;padding:8px 4px">
+            <div class="trow-label">合格股息（实收） <span class="trow-note">Eligible Dividend · T5 Box 24</span></div>
+            <div class="trow-val" id="r-div-elig">—</div>
+          </div>
+          <div class="trow" style="padding-left:16px">
+            <div class="trow-label" style="padding-left:12px;color:var(--ink3);font-size:12px">Gross-up ×1.38 后并入应税收入</div>
+            <div class="trow-val" style="font-size:12px;color:var(--ink3)" id="r-div-elig-grossed">—</div>
+          </div>
+          <div class="trow bg-grey" style="border-radius:4px;padding:8px 4px">
+            <div class="trow-label">一般股息（实收） <span class="trow-note">Non-Eligible Dividend · T5 Box 10</span></div>
+            <div class="trow-val" id="r-div-non">—</div>
+          </div>
+          <div class="trow" style="padding-left:16px">
+            <div class="trow-label" style="padding-left:12px;color:var(--ink3);font-size:12px">Gross-up ×1.15 后并入应税收入</div>
+            <div class="trow-val" style="font-size:12px;color:var(--ink3)" id="r-div-non-grossed">—</div>
+          </div>
+          <div class="trow">
+            <div class="trow-label">利息收入 <span class="trow-note">Interest Income · T5 Box 13 · Line 12100</span></div>
+            <div class="trow-val" id="r-interest">—</div>
+          </div>
+          <div class="trow">
+            <div class="trow-label">租金收入 <span class="trow-note">Gross Rental Income · Line 12599</span></div>
+            <div class="trow-val" id="r-rental-gross">—</div>
+          </div>
+          <div class="trow">
+            <div class="trow-label" style="padding-left:16px">减：出租房支出</div>
+            <div class="trow-val" id="r-rental-exp">—</div>
+          </div>
+          <div class="trow subtotal trow-bold" id="r-rental-net-row">
+            <div class="trow-label">出租净收入 / (亏损) <span class="trow-note">Net Rental · Line 12600</span></div>
+            <div class="trow-val" id="r-rental-net">—</div>
+          </div>
+          <div class="trow trow-bold subtotal bg-blue" style="border-radius:6px;padding:10px 12px;margin:4px -12px">
+            <div class="trow-label">总收入 <span class="trow-note">雇佣 + Grossed-up股息 + 利息 + 出租净收入 · Line 15000</span></div>
+            <div class="trow-val val-blue" id="r-total-income">—</div>
+          </div>
+
+          <div style="height:16px"></div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:8px">扣除项目</div>
+
+          <div class="trow">
+            <div class="trow-label">RPP 供款扣除 <span class="trow-note">Line 20700</span></div>
+            <div class="trow-val val-amber" id="r-rpp-ded">—</div>
+          </div>
+          <div class="trow">
+            <div class="trow-label">RRSP 供款扣除 <span class="trow-note">Line 20800</span></div>
+            <div class="trow-val val-amber" id="r-rrsp-ded">—</div>
+          </div>
+          <div class="trow">
+            <div class="trow-label">其他扣除 <span class="trow-note">Other Deductions</span></div>
+            <div class="trow-val val-amber" id="r-other-ded">—</div>
+          </div>
+
+          <div class="trow trow-bold subtotal bg-grey" style="margin:4px -12px;padding:10px 12px;border-radius:6px">
+            <div class="trow-label">净收入 <span class="trow-note">Net Income · Line 23600</span></div>
+            <div class="trow-val" id="r-net-income">—</div>
+          </div>
+          <div class="trow trow-bold subtotal bg-blue" style="margin:4px -12px;padding:10px 12px;border-radius:6px">
+            <div class="trow-label">应税收入 <span class="trow-note">Taxable Income · Line 26000</span></div>
+            <div class="trow-val val-blue" id="r-taxable">—</div>
+          </div>
+
+          <!-- Gauge -->
+          <div style="height:16px"></div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:8px">税务负担分布</div>
+          <div class="gauge-wrap">
+            <div class="gauge-track">
+              <div class="gauge-seg gauge-seg-fed" id="gauge-fed" style="width:0%"></div>
+              <div class="gauge-seg gauge-seg-on" id="gauge-on" style="width:0%"></div>
+            </div>
+            <div class="gauge-labels">
+              <span>联邦税 <span id="g-fed-pct" style="font-family:DM Mono,monospace">—</span></span>
+              <span>安省税 <span id="g-on-pct" style="font-family:DM Mono,monospace">—</span></span>
+              <span>实际税率 <span id="g-eff-pct" style="font-family:DM Mono,monospace;color:var(--accent)">—</span></span>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px">
+            <div style="background:var(--blue-light);border-radius:8px;padding:10px 12px;text-align:center">
+              <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--blue);margin-bottom:4px">联邦边际税率</div>
+              <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--blue)" id="g-fed-marginal">—</div>
+            </div>
+            <div style="background:var(--purple-light);border-radius:8px;padding:10px 12px;text-align:center">
+              <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--purple);margin-bottom:4px">安省边际税率</div>
+              <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--purple)" id="g-on-marginal">—</div>
+            </div>
+            <div style="background:var(--amber-light);border-radius:8px;padding:10px 12px;text-align:center">
+              <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--amber);margin-bottom:4px">实际边际税率</div>
+              <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--amber)" id="g-combined-marginal">—</div>
+            </div>
+          </div>
+
+          <!-- After-tax & Bi-weekly -->
+          <div style="height:16px"></div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:8px">税后收入</div>
+
+          <div class="trow">
+            <div class="trow-label">联邦应缴税 <span class="trow-note">来自联邦税标签页</span></div>
+            <div class="trow-val val-blue" id="r-at-fed">—</div>
+          </div>
+          <div class="trow">
+            <div class="trow-label">安省应缴税 <span class="trow-note">来自安省税标签页</span></div>
+            <div class="trow-val val-purple" id="r-at-on">—</div>
+          </div>
+          <div class="trow">
+            <div class="trow-label">自付医疗保险 <span class="trow-note">来自其他支出标签页</span></div>
+            <div class="trow-val val-red" id="r-at-health">—</div>
+          </div>
+          <div class="trow">
+            <div class="trow-label">自付股票供款 <span class="trow-note">来自其他支出标签页</span></div>
+            <div class="trow-val val-red" id="r-at-stock">—</div>
+          </div>
+
+          <div style="height:10px"></div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:8px">退税估算</div>
+
+          <div class="trow">
+            <div class="trow-label">公司预扣税 <span class="trow-note">T4 Box 22 · Line 43700</span></div>
+            <div class="trow-val val-amber" id="r-withheld">—</div>
+          </div>
+          <div class="trow">
+            <div class="trow-label">减：联邦应缴税</div>
+            <div class="trow-val val-blue" id="r-refund-fed">—</div>
+          </div>
+          <div class="trow">
+            <div class="trow-label">减：安省应缴税</div>
+            <div class="trow-val val-purple" id="r-refund-on">—</div>
+          </div>
+          <div class="trow trow-bold subtotal" id="r-refund-row" style="margin:4px -12px;padding:12px 16px;border-radius:8px;border:1px solid #86efac">
+            <div class="trow-label" id="r-refund-label" style="color:var(--green)">预计退税 <span style="font-weight:400;font-size:11px;display:block;margin-top:2px">预扣税 − 联邦税 − 安省税（正数为退税，负数为补税）</span></div>
+            <div class="trow-val" style="font-size:15px" id="r-refund">—</div>
+          </div>
+          <div class="trow trow-bold subtotal" style="background:var(--green-light);margin:4px -12px;padding:12px 16px;border-radius:8px;border:1px solid #86efac">
+            <div class="trow-label" style="color:var(--green)">税后年收入 <span style="color:#4a7a5a;font-weight:400;font-size:11px;display:block;margin-top:2px">应税收入（已扣工会费）− 联邦税 − 安省税 − CPP − CPP2 − EI − 自付医疗 − 自付股票</span></div>
+            <div class="trow-val" style="color:var(--green);font-size:16px" id="r-after-tax">—</div>
+          </div>
+          <div class="trow trow-bold subtotal" style="background:var(--ink);margin:8px -12px 0;padding:12px 16px;border-radius:8px">
+            <div class="trow-label" style="color:white">Bi-weekly 到手收入 <span style="color:#7a9a8a;font-weight:400;font-size:11px;display:block;margin-top:2px">税后年收入 ÷ 26</span></div>
+            <div class="trow-val" style="color:var(--accent2);font-size:18px;font-family:'DM Serif Display',serif" id="r-biweekly">—</div>
+          </div>
+        </div>
+
+        <!-- ── FEDERAL TAX TAB ── -->
+        <div class="tab-panel" id="tab-federal">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--blue);margin-bottom:10px">税率级距 · 2026 Federal Brackets</div>
+
+          <div class="bracket-section" id="fed-brackets">
+            <!-- generated by JS -->
+          </div>
+
+          <div class="trow trow-bold">
+            <div class="trow-label">税前联邦税 <span class="trow-note">Federal Tax Before Credits</span></div>
+            <div class="trow-val val-blue" id="r-fed-gross">—</div>
+          </div>
+
+          <div style="height:14px"></div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--blue);margin-bottom:8px">联邦不可退税抵免 (×14%)</div>
+
+          <div class="trow"><div class="trow-label">基本个人免税额 (BPA) <span class="trow-note">Line 30000 · $16,452 × 14%</span></div><div class="trow-val" id="r-fed-bpa">—</div></div>
+          <div class="trow bg-grey" style="border-radius:4px;padding:8px 4px"><div class="trow-label">CPP1 供款抵免 <span class="trow-note">Line 30800 · × 14%</span></div><div class="trow-val" id="r-fed-cpp1">—</div></div>
+          <div class="trow"><div class="trow-label">CPP2 供款抵免 <span class="trow-note">Line 22215 · × 14%</span></div><div class="trow-val" id="r-fed-cpp2">—</div></div>
+          <div class="trow bg-grey" style="border-radius:4px;padding:8px 4px"><div class="trow-label">EI 保费抵免 <span class="trow-note">Line 31200 · × 14%</span></div><div class="trow-val" id="r-fed-ei">—</div></div>
+          <div class="trow"><div class="trow-label">加拿大就业金额 <span class="trow-note">Line 31260 · up to $1,501 × 14%</span></div><div class="trow-val" id="r-fed-emp">—</div></div>
+          <div class="trow bg-grey" style="border-radius:4px;padding:8px 4px"><div class="trow-label">合格股息税收抵免 (DTC) <span class="trow-note">Line 40425 · Grossed-up × 15.0198%</span></div><div class="trow-val" id="r-fed-dtc-elig">—</div></div>
+          <div class="trow"><div class="trow-label">一般股息税收抵免 (DTC) <span class="trow-note">Line 40425 · Grossed-up × 9.0301%</span></div><div class="trow-val" id="r-fed-dtc-non">—</div></div>
+
+          <div class="trow trow-bold subtotal bg-blue" style="margin:8px -12px 4px;padding:10px 12px;border-radius:6px">
+            <div class="trow-label">联邦抵免合计</div>
+            <div class="trow-val val-blue" id="r-fed-credits">—</div>
+          </div>
+          <div class="trow trow-bold subtotal" style="background:var(--ink);margin:0 -12px;padding:12px 12px;border-radius:6px">
+            <div class="trow-label" style="color:white">联邦应缴税 <span style="color:#a0aab5;font-weight:400">Federal Tax Payable · Line 42000</span></div>
+            <div class="trow-val" style="color:var(--accent2);font-size:16px" id="r-fed-net">—</div>
+          </div>
+        </div>
+
+        <!-- ── ONTARIO TAX TAB ── -->
+        <div class="tab-panel" id="tab-ontario">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--purple);margin-bottom:10px">税率级距 · 2026 Ontario Brackets (ON428)</div>
+
+          <div class="bracket-section" id="on-brackets">
+            <!-- generated by JS -->
+          </div>
+
+          <div class="trow trow-bold"><div class="trow-label">安省基础税 <span class="trow-note">Ontario Basic Tax Before Surtax</span></div><div class="trow-val val-purple" id="r-on-gross">—</div></div>
+          <div class="trow"><div class="trow-label">安省附加税 (Surtax) <span class="trow-note">20% on tax > $5,315 + 36% > $6,142</span></div><div class="trow-val val-purple" id="r-on-surtax">—</div></div>
+
+          <div style="height:14px"></div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--purple);margin-bottom:8px">安省不可退税抵免 (×5.05%)</div>
+
+          <div class="trow"><div class="trow-label">基本个人免税额 <span class="trow-note">$12,399 × 5.05%</span></div><div class="trow-val" id="r-on-bpa">—</div></div>
+          <div class="trow bg-grey" style="border-radius:4px;padding:8px 4px"><div class="trow-label">CPP1 供款抵免 <span class="trow-note">× 5.05%</span></div><div class="trow-val" id="r-on-cpp1">—</div></div>
+          <div class="trow"><div class="trow-label">EI 保费抵免 <span class="trow-note">× 5.05%</span></div><div class="trow-val" id="r-on-ei">—</div></div>
+          <div class="trow bg-grey" style="border-radius:4px;padding:8px 4px"><div class="trow-label">合格股息税收抵免 (DTC) <span class="trow-note">Grossed-up × 10%</span></div><div class="trow-val" id="r-on-dtc-elig">—</div></div>
+          <div class="trow"><div class="trow-label">一般股息税收抵免 (DTC) <span class="trow-note">Grossed-up × 3.2863%</span></div><div class="trow-val" id="r-on-dtc-non">—</div></div>
+
+          <div class="trow trow-bold subtotal bg-purple" style="margin:8px -12px 4px;padding:10px 12px;border-radius:6px">
+            <div class="trow-label">安省抵免合计</div>
+            <div class="trow-val val-purple" id="r-on-credits">—</div>
+          </div>
+          <div class="trow trow-bold subtotal" style="background:#3d1a5c;margin:0 -12px;padding:12px 12px;border-radius:6px">
+            <div class="trow-label" style="color:white">安省应缴税 <span style="color:#c0a0e0;font-weight:400">Ontario Tax Payable · ON428</span></div>
+            <div class="trow-val" style="color:#d4a8f0;font-size:16px" id="r-on-net">—</div>
+          </div>
+        </div>
+
+        <!-- ── PAYROLL TAB ── -->
+        <div class="tab-panel" id="tab-payroll">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:14px">工资代扣明细 · 可直接输入 T4 实际金额</div>
+
+          <!-- CPP1 -->
+          <div class="trow" style="align-items:center">
+            <div class="trow-label">CPP1 员工供款
+              <span class="trow-note">T4 Box 16 · 税率 5.95%，免额 $3,500，上限 $74,600</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--ink3)">$</span>
+              <input class="payroll-input" id="inp-cpp1" type="number" min="0" step="0.01">
+            </div>
+          </div>
+          <!-- CPP2 -->
+          <div class="trow bg-grey" style="align-items:center;border-radius:4px;padding:8px 4px">
+            <div class="trow-label">CPP2 员工供款
+              <span class="trow-note">T4 Box 16A · 税率 4%，$74,600–$85,000</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--ink3)">$</span>
+              <input class="payroll-input" id="inp-cpp2" type="number" min="0" step="0.01">
+            </div>
+          </div>
+          <!-- EI -->
+          <div class="trow" style="align-items:center">
+            <div class="trow-label">EI 失业保险费
+              <span class="trow-note">T4 Box 18 · 税率 1.63%，上限 $68,900</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--ink3)">$</span>
+              <input class="payroll-input" id="inp-ei" type="number" min="0" step="0.01">
+            </div>
+          </div>
+          <!-- RPP -->
+          <div class="trow bg-grey" style="align-items:center;border-radius:4px;padding:8px 4px">
+            <div class="trow-label">RPP 注册退休金供款
+              <span class="trow-note">T4 Box 20 · 按雇佣收入 × 8% 自动计算，同步至"收入 &amp; 扣除"的 RPP 扣除项</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--ink3)">$</span>
+              <input class="payroll-input" id="inp-rpp" type="number" min="0" step="0.01">
+            </div>
+          </div>
+          <!-- Pension Adjustment -->
+          <div class="trow" style="align-items:center">
+            <div class="trow-label">Pension Adjustment
+              <span class="trow-note">T4 Box 52 · 仅影响下年 RRSP 空间，不影响当年应税收入</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--ink3)">$</span>
+              <input class="payroll-input" id="inp-pa" type="number" min="0" step="0.01">
+            </div>
+          </div>
+
+          <!-- Union Dues -->
+          <div class="trow bg-grey" style="align-items:center;border-radius:4px;padding:8px 4px">
+            <div class="trow-label">工会会费 Union Dues
+              <span class="trow-note">T4 Box 44 · 按雇佣收入 × 1.667% 自动计算，可税前扣除</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--ink3)">$</span>
+              <input class="payroll-input" id="inp-union" type="number" min="0" step="0.01">
+            </div>
+          </div>
+
+          <div class="trow trow-bold subtotal bg-blue" style="margin:8px -12px;padding:10px 12px;border-radius:6px">
+            <div class="trow-label">工资代扣合计 <span class="trow-note">CPP1 + CPP2 + EI + RPP + 工会费</span></div>
+            <div class="trow-val val-blue" id="r-payroll-total">—</div>
+          </div>
+
+          <!-- PA info box -->
+          <div style="margin-top:12px;padding:12px 14px;background:var(--amber-light);border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#78350f;line-height:1.6">
+            <strong>📌 Pension Adjustment 说明：</strong>PA 不减少当年应税收入，也不产生税收抵免。其唯一作用是压缩下一年度 RRSP 供款空间。<br>
+            <span id="pa-rrsp-impact" style="margin-top:4px;display:block"></span>
+          </div>
+
+          <div style="height:16px"></div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:8px">参考限额（2026年）</div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
+            <div style="background:var(--paper);border-radius:6px;padding:10px 12px">
+              <div style="color:var(--ink3);font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">CPP1 最大供款</div>
+              <div style="font-family:DM Mono,monospace;font-weight:600">$4,230.45</div>
+            </div>
+            <div style="background:var(--paper);border-radius:6px;padding:10px 12px">
+              <div style="color:var(--ink3);font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">EI 最大保费</div>
+              <div style="font-family:DM Mono,monospace;font-weight:600">$1,123.07</div>
+            </div>
+            <div style="background:var(--paper);border-radius:6px;padding:10px 12px">
+              <div style="color:var(--ink3);font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">CPP2 最大供款</div>
+              <div style="font-family:DM Mono,monospace;font-weight:600">$416.00</div>
+            </div>
+            <div style="background:var(--paper);border-radius:6px;padding:10px 12px">
+              <div style="color:var(--ink3);font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">EI 应保收入上限</div>
+              <div style="font-family:DM Mono,monospace;font-weight:600">$68,900</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 其他支出 TAB ── -->
+        <div class="tab-panel" id="tab-expenses">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:14px">个人支出 · 从税后收入中扣减</div>
+
+          <!-- 自付医疗保险 -->
+          <div class="trow" style="align-items:center">
+            <div class="trow-label">自付医疗保险
+              <span class="trow-note">按雇佣收入 × 2% 自动计算（年度医疗/牙科/视力保险费，税后支出）</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--ink3)">$</span>
+              <input class="payroll-input" id="inp-health" type="number" value="0" min="0" step="0.01">
+            </div>
+          </div>
+
+          <!-- 自付股票部分 -->
+          <div class="trow bg-grey" style="align-items:center;border-radius:4px;padding:8px 4px">
+            <div class="trow-label">自付股票供款
+              <span class="trow-note">按雇佣收入 × 10% 自动计算（ESPP/员工持股计划自付金额，税后支出）</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--ink3)">$</span>
+              <input class="payroll-input" id="inp-stock" type="number" value="0" min="0" step="0.01">
+            </div>
+          </div>
+
+          <div class="trow trow-bold subtotal bg-red" style="margin:8px -12px;padding:10px 12px;border-radius:6px">
+            <div class="trow-label">其他支出合计</div>
+            <div class="trow-val val-red" id="r-expenses-total">—</div>
+          </div>
+
+          <div style="margin-top:14px;padding:12px 14px;background:var(--blue-light);border:1px solid #93c5fd;border-radius:8px;font-size:12px;color:var(--blue);line-height:1.6">
+            <strong>📌 说明：</strong>以上支出为税后实际支出，不影响应税收入计算，但会从税后年收入中扣减，反映真实到手可支配金额。自付医疗费用若超过净收入的 3% 可申报 Medical Expense Tax Credit，请在"其他税前扣除"中单独处理。
+          </div>
+        </div>
+
+      </div><!-- end card -->
+
+      <div class="disclaimer">
+        <strong>⚠️ 免责声明：</strong>本计算器基于 2026 年 CRA 公布税率，仅供参考。出租净亏损已直接从总收入中扣减。如房产涉及"主要居所转出租"的 deemed disposition 规则，亏损处理可能受限，实际情况请咨询注册税务师（CPA）。RRSP 额度以 CRA My Account 为准。
+      </div>
+
+    </div><!-- end results col -->
+  </div><!-- end grid -->
+</div><!-- end page-wrap -->
+
+<script>
+// ── 2026 Constants ──
+const CPP_RATE = 0.0595, CPP_BASIC_EXEMPT = 3500, CPP_MAX_EARN = 74600;
+const CPP2_RATE = 0.04,  CPP2_MAX_EARN = 85000;
+const CPP_MAX = (CPP_MAX_EARN - CPP_BASIC_EXEMPT) * CPP_RATE; // 4230.45
+const EI_RATE = 0.0163, EI_MAX_EARN = 68900;
+const RPP_RATE = 0.08;    // 8% of employment income
+const UNION_RATE = 0.01667; // 1.667% of employment income
+
+const FED_BPA = 16452, FED_EMP_AMT = 1501;
+const ON_BPA  = 12399;
+const ON_CR   = 0.0505;
+const FED_CR  = 0.14;  // 2026: lowest federal rate reduced to 14%
+
+const FED_BRACKETS = [
+  { limit: 58523,    rate: 0.14,  label: '$0 – $58,523' },
+  { limit: 111733,   rate: 0.205, label: '$58,523 – $111,733' },
+  { limit: 154906,   rate: 0.26,  label: '$111,733 – $154,906' },
+  { limit: 220000,   rate: 0.29,  label: '$154,906 – $220,000' },
+  { limit: Infinity, rate: 0.33,  label: 'Over $220,000' },
+];
+const ON_BRACKETS = [
+  { limit: 53891,    rate: 0.0505, label: '$0 – $53,891' },
+  { limit: 107785,   rate: 0.0915, label: '$53,891 – $107,785' },
+  { limit: 150000,   rate: 0.1116, label: '$107,785 – $150,000' },
+  { limit: 220000,   rate: 0.1216, label: '$150,000 – $220,000' },
+  { limit: Infinity, rate: 0.1316, label: 'Over $220,000' },
+];
+
+// ── Helpers ──
+const $ = id => document.getElementById(id);
+const fmt = n => {
+  const abs = Math.abs(n), s = abs.toLocaleString('en-CA', {minimumFractionDigits:2,maximumFractionDigits:2});
+  return n < 0 ? `($${s})` : `$${s}`;
+};
+const fmtp = n => n.toFixed(2) + '%';
+const inp = id => parseFloat($(id).value) || 0;
+
+function calcBrackets(income, brackets) {
+  let prev = 0, tax = 0, details = [];
+  for (const b of brackets) {
+    const lim = b.limit === Infinity ? income : Math.min(income, b.limit);
+    const amount = Math.max(0, lim - prev);
+    details.push({ ...b, amount, tax: amount * b.rate, active: income > prev && income <= (b.limit === Infinity ? Infinity : b.limit) });
+    tax += amount * b.rate;
+    prev = b.limit === Infinity ? income : b.limit;
+    if (income <= b.limit) break;
+  }
+  return { tax: Math.round(tax * 100) / 100, details };
+}
+
+function renderBrackets(containerId, details, color) {
+  const maxTax = Math.max(...details.map(d => d.tax), 1);
+  const el = $(containerId);
+  el.innerHTML = details.map(d => `
+    <div class="bracket-item${d.active && d.amount > 0 ? ' active-bracket' : ''}">
+      <div class="bracket-range">${d.label}</div>
+      <div class="bracket-rate" style="color:${d.active && d.amount > 0 ? 'var(--amber)' : color}">${(d.rate*100).toFixed(4).replace(/\.?0+$/,'')}%</div>
+      <div class="bracket-bar-wrap"><div class="bracket-bar" style="background:${d.active && d.amount > 0 ? 'var(--amber)' : color};width:${d.amount > 0 ? Math.max(4, d.tax/maxTax*100) : 0}%"></div></div>
+      <div class="bracket-amount">${d.amount > 0 ? fmt(d.tax) : '—'}</div>
+    </div>
+  `).join('');
+}
+
+function set(id, val, extra='') {
+  const el = $(id);
+  if (!el) return;
+  el.textContent = val;
+  if (extra) el.className = el.className.replace(/val-\w+/g,'') + ' ' + extra;
+}
+
+// ── Dividend constants (2025) ──
+const ELIG_GROSSUP   = 1.38;
+const ELIG_FED_DTC   = 0.150198;
+const ELIG_ON_DTC    = 0.10;
+const NON_GROSSUP    = 1.15;
+const NON_FED_DTC    = 0.090301;
+const NON_ON_DTC     = 0.032863;
+
+function calculate() {
+  const emp      = inp('inp-employment');
+  const rGross   = inp('inp-rental-income');
+  const rExp     = inp('inp-rental-exp');
+  const divElig  = inp('inp-div-elig');
+  const divNon   = inp('inp-div-non');
+  const interest = inp('inp-interest');
+  const rrsp     = Math.min(inp('inp-rrsp'), 11530);
+  const otherD   = inp('inp-other-ded');
+
+  // ── Payroll inputs (T4 actuals)
+  const cpp1  = inp('inp-cpp1');
+  const cpp2  = inp('inp-cpp2');
+  const ei    = inp('inp-ei');
+  const rpp   = inp('inp-rpp');
+  const pa    = inp('inp-pa');
+  const union = inp('inp-union');
+
+  // ── Other expenses (after-tax)
+  const health   = inp('inp-health');
+  const stock    = inp('inp-stock');
+  const withheld = inp('inp-withheld');
+
+  // ── Dividend gross-up
+  const divEligGrossed = Math.round(divElig * ELIG_GROSSUP * 100) / 100;
+  const divNonGrossed  = Math.round(divNon  * NON_GROSSUP  * 100) / 100;
+
+  // ── Total income (grossed-up dividends + interest as ordinary income)
+  const netRental   = rGross - rExp;
+  const totalIncome = emp + netRental + divEligGrossed + divNonGrossed + interest;
+
+  // ── Deductions → Net Income → Taxable Income
+  const netIncome     = totalIncome - rpp - union - rrsp - otherD;
+  const taxableIncome = Math.max(0, netIncome);
+
+  // ── Federal tax on full taxable income (including grossed-up dividends)
+  const { tax: fedGross, details: fedDet } = calcBrackets(taxableIncome, FED_BRACKETS);
+
+  // Federal credits  (2026: credit rate = 14%)
+  const fedBPA     = FED_BPA * FED_CR;
+  const fedCPP1    = cpp1 * FED_CR;
+  const fedCPP2    = cpp2 * FED_CR;
+  const fedEI      = ei * FED_CR;
+  const fedEmpA    = Math.min(FED_EMP_AMT, emp) * FED_CR;
+  const fedDtcElig = divEligGrossed * ELIG_FED_DTC;
+  const fedDtcNon  = divNonGrossed  * NON_FED_DTC;
+  const fedCredits = fedBPA + fedCPP1 + fedCPP2 + fedEI + fedEmpA + fedDtcElig + fedDtcNon;
+  const fedNet     = Math.max(0, fedGross - fedCredits);
+
+  // ── Ontario tax
+  const { tax: onGross, details: onDet } = calcBrackets(taxableIncome, ON_BRACKETS);
+  let onSurtax = 0;
+  if (onGross > 6142) onSurtax += (onGross - 6142) * 0.36;
+  if (onGross > 5315) onSurtax += (onGross - 5315) * 0.20;
+  onSurtax = Math.round(onSurtax * 100) / 100;
+
+  // Ontario credits
+  const onBPA      = ON_BPA * ON_CR;
+  const onCPP1     = cpp1 * ON_CR;
+  const onEI       = ei * ON_CR;
+  const onDtcElig  = divEligGrossed * ELIG_ON_DTC;
+  const onDtcNon   = divNonGrossed  * NON_ON_DTC;
+  const onCredits  = onBPA + onCPP1 + onEI + onDtcElig + onDtcNon;
+  const onNet      = Math.max(0, onGross + onSurtax - onCredits);
+
+  const totalTax = fedNet + onNet;
+  const effRate  = taxableIncome > 0 ? totalTax / taxableIncome * 100 : 0;
+  const fedPct   = taxableIncome > 0 ? fedNet / taxableIncome * 100 : 0;
+  const onPct    = taxableIncome > 0 ? onNet  / taxableIncome * 100 : 0;
+
+  // ── Update DOM ──
+
+  // Summary cards
+  set('s-taxable', fmt(taxableIncome));
+  set('s-fed', fmt(fedNet));
+  set('s-on', fmt(onNet));
+  set('s-total', fmt(totalTax));
+  $('s-eff').textContent = '实际税率 ' + fmtp(effRate);
+
+  // Income tab – investment rows
+  set('r-employment',      fmt(emp));
+  set('r-div-elig',        fmt(divElig));
+  set('r-div-elig-grossed',fmt(divEligGrossed));
+  set('r-div-non',         fmt(divNon));
+  set('r-div-non-grossed', fmt(divNonGrossed));
+  set('r-interest',        fmt(interest));
+  set('r-rental-gross',    fmt(rGross));
+  set('r-rental-exp',      fmt(-rExp));
+  set('r-rental-net',      fmt(netRental));
+  const rnetRow = $('r-rental-net-row');
+  rnetRow.className = 'trow subtotal trow-bold ' + (netRental < 0 ? 'bg-red' : 'bg-green');
+  $('r-rental-net').style.color = netRental < 0 ? 'var(--accent)' : 'var(--green)';
+  set('r-total-income', fmt(totalIncome));
+  set('r-rpp-ded',      fmt(-rpp));
+  set('r-rrsp-ded',     fmt(-rrsp));
+  set('r-other-ded',    fmt(-otherD));
+  set('r-net-income',   fmt(netIncome));
+  set('r-taxable',      fmt(taxableIncome));
+
+  // Gauge
+  $('gauge-fed').style.width = Math.min(fedPct, 100) + '%';
+  $('gauge-on').style.width  = Math.min(onPct,  100) + '%';
+  $('g-fed-pct').textContent = fmtp(fedPct);
+  $('g-on-pct').textContent  = fmtp(onPct);
+  $('g-eff-pct').textContent = fmtp(effRate);
+
+  // Marginal rates
+  const fedMarginalRate = fedDet.find(d => d.active && d.amount > 0)?.rate || 0;
+  const onMarginalRate  = onDet.find(d => d.active && d.amount > 0)?.rate  || 0;
+  const combinedMarginal = fedMarginalRate + onMarginalRate;
+  $('g-fed-marginal').textContent     = fmtp(fedMarginalRate * 100);
+  $('g-on-marginal').textContent      = fmtp(onMarginalRate * 100);
+  $('g-combined-marginal').textContent = fmtp(combinedMarginal * 100);
+
+  // After-tax
+  // union已在netIncome中税前扣除，此处仅扣除税后现金支出（CPP/EI/医疗/股票）
+  const afterTax = taxableIncome - fedNet - onNet - cpp1 - cpp2 - ei - health - stock;
+  const biweekly = afterTax / 26;
+  set('r-at-fed',    fmt(fedNet));
+  set('r-at-on',     fmt(onNet));
+  set('r-at-health', fmt(health));
+  set('r-at-stock',  fmt(stock));
+  set('r-after-tax', fmt(afterTax));
+  set('r-biweekly',  fmt(biweekly));
+
+  // Refund estimation
+  const refund = withheld - fedNet - onNet;
+  set('r-withheld',   fmt(withheld));
+  set('r-refund-fed', fmt(-fedNet));
+  set('r-refund-on',  fmt(-onNet));
+  set('r-refund',     fmt(refund));
+  const refundRow   = $('r-refund-row');
+  const refundLabel = $('r-refund-label');
+  if (withheld === 0) {
+    refundRow.style.background = 'var(--paper)';
+    refundRow.style.border = '1px solid var(--border)';
+    refundLabel.style.color = 'var(--ink3)';
+    $('r-refund').style.color = 'var(--ink3)';
+    refundLabel.childNodes[0].textContent = '预计退税';
+  } else if (refund >= 0) {
+    refundRow.style.background = 'var(--green-light)';
+    refundRow.style.border = '1px solid #86efac';
+    refundLabel.style.color = 'var(--green)';
+    $('r-refund').style.color = 'var(--green)';
+    refundLabel.childNodes[0].textContent = '预计退税 ✅';
+  } else {
+    refundRow.style.background = 'var(--red-light)';
+    refundRow.style.border = '1px solid #fca5a5';
+    refundLabel.style.color = 'var(--accent)';
+    $('r-refund').style.color = 'var(--accent)';
+    refundLabel.childNodes[0].textContent = '预计补税 ⚠️';
+  }
+
+  // Federal tab
+  renderBrackets('fed-brackets', fedDet, 'var(--blue2)');
+  set('r-fed-gross',    fmt(fedGross));
+  set('r-fed-bpa',      fmt(fedBPA));
+  set('r-fed-cpp1',     fmt(fedCPP1));
+  set('r-fed-cpp2',     fmt(fedCPP2));
+  set('r-fed-ei',       fmt(fedEI));
+  set('r-fed-emp',      fmt(fedEmpA));
+  set('r-fed-dtc-elig', fmt(fedDtcElig));
+  set('r-fed-dtc-non',  fmt(fedDtcNon));
+  set('r-fed-credits',  fmt(fedCredits));
+  set('r-fed-net',      fmt(fedNet));
+
+  // Ontario tab
+  renderBrackets('on-brackets', onDet, 'var(--purple)');
+  set('r-on-gross',    fmt(onGross));
+  set('r-on-surtax',   fmt(onSurtax));
+  set('r-on-bpa',      fmt(onBPA));
+  set('r-on-cpp1',     fmt(onCPP1));
+  set('r-on-ei',       fmt(onEI));
+  set('r-on-dtc-elig', fmt(onDtcElig));
+  set('r-on-dtc-non',  fmt(onDtcNon));
+  set('r-on-credits',  fmt(onCredits));
+  set('r-on-net',      fmt(onNet));
+
+  // Payroll tab total
+  set('r-payroll-total', fmt(cpp1 + cpp2 + ei + rpp + union));
+
+  // Expenses tab total
+  set('r-expenses-total', fmt(health + stock));
+
+  // PA RRSP impact
+  if (pa > 0) {
+    const grossRrspRoom = Math.round(emp * 0.18);
+    const netNewRoom = Math.max(0, grossRrspRoom - pa);
+    $('pa-rrsp-impact').innerHTML =
+      `按当前收入 $${emp.toLocaleString('en-CA',{maximumFractionDigits:0})} 推算：` +
+      `收入 × 18% = <strong>$${grossRrspRoom.toLocaleString()}</strong>，` +
+      `减去 PA <strong>$${pa.toLocaleString()}</strong>，` +
+      `下年新增 RRSP 额度约 <strong style="color:var(--green)">$${netNewRoom.toLocaleString()}</strong>。`;
+  } else {
+    $('pa-rrsp-impact').textContent = '输入 PA 金额后将自动推算对下年 RRSP 供款空间的影响。';
+  }
+
+  // RRSP hint
+  const rrspRoom = 11530 - rrsp;
+  if (rrspRoom > 0) {
+    const saving = rrspRoom * combinedMarginal;
+    $('rrsp-hint').innerHTML =
+      `还有 <span class="optimizer-highlight">$${rrspRoom.toLocaleString()}</span> RRSP 额度未使用。` +
+      `边际税率 <span class="optimizer-highlight">${fmtp(combinedMarginal*100)}</span>，` +
+      `若全额供款可节税约 <span class="optimizer-highlight">${fmt(saving)}</span>。`;
+  } else {
+    $('rrsp-hint').textContent = '2026年RRSP额度已用完。';
+  }
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  const idx = ['income','federal','ontario','payroll','expenses'].indexOf(name);
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+  $('tab-' + name).classList.add('active');
+}
+
+// ── Auto-calculate payroll deductions from employment income ──
+function initPayrollDefaults() {
+  const emp = inp('inp-employment');
+
+  // CPP1: (min(emp, CPP_MAX_EARN) - CPP_BASIC_EXEMPT) × 5.95%, capped at CPP_MAX
+  const cpp1Earn = Math.max(0, Math.min(emp, CPP_MAX_EARN) - CPP_BASIC_EXEMPT);
+  const cpp1def  = Math.round(Math.min(cpp1Earn * CPP_RATE, CPP_MAX) * 100) / 100;
+
+  // CPP2: (min(emp, CPP2_MAX_EARN) - CPP_MAX_EARN) × 4%, only if emp > CPP_MAX_EARN
+  const cpp2Earn = emp > CPP_MAX_EARN ? Math.min(emp, CPP2_MAX_EARN) - CPP_MAX_EARN : 0;
+  const cpp2def  = Math.round(Math.max(0, cpp2Earn) * CPP2_RATE * 100) / 100;
+
+  // EI: min(emp, EI_MAX_EARN) × 1.63%
+  const eiDef    = Math.round(Math.min(emp, EI_MAX_EARN) * EI_RATE * 100) / 100;
+
+  // RPP: emp × 8%
+  const rppDef   = Math.round(emp * RPP_RATE * 100) / 100;
+
+  // Union dues: emp × 1.667%
+  const unionDef = Math.round(emp * UNION_RATE * 100) / 100;
+
+  // Health insurance: emp × 2%
+  const healthDef = Math.round(emp * 0.02 * 100) / 100;
+
+  // Stock plan: emp × 10%
+  const stockDef  = Math.round(emp * 0.10 * 100) / 100;
+
+  $('inp-cpp1').value  = cpp1def.toFixed(2);
+  $('inp-cpp2').value  = cpp2def.toFixed(2);
+  $('inp-ei').value    = eiDef.toFixed(2);
+  $('inp-rpp').value   = rppDef.toFixed(2);
+  $('inp-pa').value    = 0;
+  $('inp-union').value = unionDef.toFixed(2);
+  $('inp-health').value = healthDef.toFixed(2);
+  $('inp-stock').value  = stockDef.toFixed(2);
+}
+
+// ── Event listeners ──
+// Employment income change → recalculate payroll deductions first, then full calc
+$('inp-employment').addEventListener('input', () => { initPayrollDefaults(); calculate(); });
+
+['inp-rental-income','inp-rental-exp',
+ 'inp-div-elig','inp-div-non','inp-interest',
+ 'inp-rrsp','inp-other-ded','inp-withheld'].forEach(id => {
+  $(id).addEventListener('input', calculate);
+});
+['inp-cpp1','inp-cpp2','inp-ei','inp-rpp','inp-pa','inp-union'].forEach(id => {
+  $(id).addEventListener('input', calculate);
+});
+['inp-health','inp-stock'].forEach(id => {
+  $(id).addEventListener('input', calculate);
+});
+
+// Initial setup
+initPayrollDefaults();
+calculate();
+</script>
+</body>
+</html>
