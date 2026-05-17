@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>看房记录 V1.1</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#0A6B52;--primary-h:#085a45;
+  --bg:#F4F2EC;--surface:#FFF;--surface2:#EEECE5;--surface3:#E5E3DC;
+  --border:#D9D7CF;--border2:#C8C6BE;
+  --text:#1A1916;--muted:#706E67;--hint:#9E9C95;
+  --blue:#1E6FD9;--blue-l:#EAF1FC;
+  --amber:#B96B0A;--amber-l:#FDF3E3;
+  --green:#1A7A50;--green-l:#E4F5EC;
+  --red:#C13333;--red-l:#FCEAEA;
+  --purple:#6B3FA0;--purple-l:#F0EAFC;--purple-b:#D8CAF0;
+  --r:8px;--rl:12px;--rxl:16px;
+  --sh:0 1px 3px rgba(0,0,0,.07);
+  --shm:0 4px 16px rgba(0,0,0,.10),0 2px 6px rgba(0,0,0,.06);
+  --shl:0 12px 40px rgba(0,0,0,.14),0 4px 12px rgba(0,0,0,.08);
+}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5}
+#loading{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:30px;height:30px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.logo-text{font-family:'DM Serif Display',serif;font-size:18px;letter-spacing:-.01em}
+.vbadge{font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;background:var(--purple-l);color:var(--purple);padding:2px 7px;border-radius:100px;vertical-align:middle;margin-left:5px}
+.logo-sub{font-size:11px;color:var(--muted);margin-top:-2px}
+.header-right{display:flex;align-items:center;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;border:1px solid transparent;white-space:nowrap;line-height:1}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-primary:not(:disabled):hover{background:var(--primary-h)}
+.btn-outline{background:var(--surface);color:var(--text);border-color:var(--border)}
+.btn-outline:not(:disabled):hover{background:var(--surface2);border-color:var(--border2)}
+.btn-ghost{background:transparent;color:var(--muted);border-color:transparent}
+.btn-ghost:not(:disabled):hover{background:var(--surface2);color:var(--text)}
+.btn-go{background:var(--purple-l);color:var(--purple);border-color:var(--purple-b)}
+.btn-go:not(:disabled):hover{background:#e4d9f5}
+.btn-danger{background:var(--red-l);color:var(--red)}
+.btn-danger:not(:disabled):hover{background:#f9caca}
+.btn-sm{padding:5px 11px;font-size:12px}
+.btn-xs{padding:3px 8px;font-size:11px}
+.btn-icon{padding:7px}
+.main{max-width:1280px;margin:0 auto;padding:22px 28px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px 18px}
+.stat-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.stat-value{font-size:21px;font-weight:600}
+.stat-sub{font-size:11px;color:var(--hint);margin-top:2px}
+.stat-value.gold{color:var(--amber)}
+.db-bar{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:14px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.db-bar strong{color:var(--text);font-weight:600}
+.db-bar-sep{flex:1}
+.confirm-bar{background:var(--red-l);border:1px solid #f5b5b5;border-radius:var(--r);padding:11px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.tabs{display:flex;gap:2px;background:var(--surface2);border-radius:var(--r);padding:3px;width:fit-content;margin-bottom:16px}
+.tab{padding:7px 20px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--muted);font-family:inherit;transition:all .15s}
+.tab.active{background:var(--surface);color:var(--text);box-shadow:var(--sh)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden}
+.card-toolbar{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.card-toolbar-count{font-size:13px;color:var(--muted)}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+thead th{padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;background:var(--surface2);border-bottom:1px solid var(--border)}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--surface2)}
+tbody tr:hover .row-actions{opacity:1}
+tbody td{padding:10px 14px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.go-cell{white-space:normal;line-height:1.4}
+.row-actions{display:flex;gap:3px;opacity:0;transition:opacity .15s}
+.geo-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:5px;flex-shrink:0;vertical-align:middle}
+.geo-dot.ok{background:var(--green)}.geo-dot.no{background:var(--hint)}
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:100px;font-size:11px;font-weight:600}
+.badge-D{background:var(--blue-l);color:var(--blue)}
+.badge-S{background:var(--amber-l);color:var(--amber)}
+.badge-T{background:var(--green-l);color:var(--green)}
+.go-chip{display:inline-flex;align-items:center;gap:3px;background:var(--purple-l);color:var(--purple);font-size:11px;font-weight:600;padding:2px 7px;border-radius:100px;white-space:nowrap}
+.stars{letter-spacing:1px;font-size:13px}
+.star-on{color:var(--amber)}.star-off{color:var(--surface3)}
+.mono{font-family:monospace;font-size:12px}
+.empty{padding:64px 24px;text-align:center;color:var(--muted)}
+.empty h3{font-size:16px;font-weight:600;margin-bottom:8px;color:var(--text)}
+#map{height:calc(100vh - 230px);min-height:480px;border-radius:var(--rl);overflow:hidden;border:1px solid var(--border)}
+.leaflet-popup-content-wrapper{border-radius:var(--rl)!important;box-shadow:var(--shm)!important;border:1px solid var(--border)!important}
+.leaflet-popup-content{margin:14px 16px!important;font-family:'DM Sans',system-ui,sans-serif!important}
+.overlay{position:fixed;inset:0;background:rgba(20,20,18,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
+.modal{background:var(--surface);border-radius:var(--rxl);width:100%;max-width:700px;max-height:92vh;overflow-y:auto;box-shadow:var(--shl)}
+.modal-head{padding:22px 24px 0;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.modal-title{font-family:'DM Serif Display',serif;font-size:20px}
+.modal-body{padding:0 24px}
+.modal-foot{padding:18px 24px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--border);margin-top:18px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg.full{grid-column:1/-1}
+label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+input,select,textarea{padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:14px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s,box-shadow .15s;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(10,107,82,.12)}
+input[readonly]{background:var(--surface2);color:var(--muted);cursor:default}
+input[readonly]:focus{border-color:var(--border);box-shadow:none}
+input::placeholder,textarea::placeholder{color:var(--hint)}
+textarea{resize:vertical;min-height:72px}
+.geo-status{font-size:12px;margin-top:4px;min-height:17px}
+.geo-status.idle{color:var(--hint)}.geo-status.loading{color:var(--muted)}.geo-status.ok{color:var(--green)}.geo-status.err{color:var(--red)}
+.go-panel{background:var(--purple-l);border:1px solid var(--purple-b);border-radius:var(--r);padding:13px 15px}
+.go-panel-head{font-size:11px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.go-inputs{display:grid;grid-template-columns:1fr 110px;gap:8px}
+.go-sublabel{font-size:10px;font-weight:600;color:var(--purple);letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px}
+.go-status-line{font-size:12px;margin-top:8px;min-height:17px}
+.go-status-line.idle{color:var(--hint)}.go-status-line.loading{color:var(--purple)}.go-status-line.ok{color:var(--green)}.go-status-line.err{color:var(--red)}
+.star-picker{display:flex;gap:3px;margin-top:2px}
+.star-picker span{font-size:24px;cursor:pointer;color:var(--surface3);transition:color .1s,transform .1s}
+.star-picker span:hover{transform:scale(1.15)}
+.star-picker span.on{color:var(--amber)}
+.toasts{position:fixed;top:16px;right:16px;z-index:1000;display:flex;flex-direction:column;gap:7px;pointer-events:none}
+.toast{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:11px 16px;box-shadow:var(--shm);font-size:13px;display:flex;align-items:center;gap:8px;animation:tslide .2s ease;min-width:220px;max-width:360px;pointer-events:auto}
+.toast.ok{border-left:3px solid var(--green)}.toast.err{border-left:3px solid var(--red)}
+@keyframes tslide{from{transform:translateX(110%);opacity:0}to{transform:none;opacity:1}}
+.hidden{display:none!important}
+@media(max-width:768px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .form-grid,.go-inputs{grid-template-columns:1fr}
+  .fg.full{grid-column:1}
+  .header,.main{padding-left:16px;padding-right:16px}
+  .modal-body,.modal-head,.modal-foot{padding-left:16px;padding-right:16px}
+}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p style="font-size:13px;color:var(--muted)">正在初始化数据库…</p>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<!-- Modal -->
+<div class="overlay hidden" id="overlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-head">
+      <h2 class="modal-title" id="modal-title">添加房源</h2>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="关闭">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+
+        <div class="fg full">
+          <label for="f-addr">房屋地址 <span style="color:var(--red)">*</span></label>
+          <input id="f-addr" type="text" placeholder="例: 88 Bur Oak Ave, Markham, ON" oninput="scheduleGeo()" autocomplete="off">
+          <div class="geo-status idle" id="geo-status">输入地址后自动定位</div>
+        </div>
+
+        <div class="fg">
+          <label for="f-type">房屋类型</label>
+          <select id="f-type">
+            <option value="D">D — 独立屋 Detached</option>
+            <option value="S">S — 半独立屋 Semi-Detached</option>
+            <option value="T">T — 镇屋 Townhouse</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label for="f-price">价格 (CAD)</label>
+          <input id="f-price" type="number" placeholder="1250000" min="0">
+        </div>
+        <div class="fg">
+          <label for="f-struct">房屋结构</label>
+          <input id="f-struct" type="text" placeholder="例: 4b3.5b2g">
+        </div>
+        <div class="fg"><!-- spacer --></div>
+        <div class="fg">
+          <label for="f-elem">对口小学</label>
+          <input id="f-elem" type="text" placeholder="Elementary School">
+        </div>
+        <div class="fg">
+          <label for="f-high">对口高中</label>
+          <input id="f-high" type="text" placeholder="High School">
+        </div>
+
+        <!-- GO 站面板 -->
+        <div class="fg full">
+          <label>🚆 最近 GO 站（Stouffville 线，地址定位后自动计算驾车距离）</label>
+          <div class="go-panel">
+            <div class="go-panel-head">
+              <span>计算范围：Mount Joy · Markham · Unionville · Centennial</span>
+              <button type="button" class="btn btn-go btn-xs" onclick="recalcGO()" id="btn-recalc">⟳ 重算</button>
+            </div>
+            <div class="go-inputs">
+              <div>
+                <div class="go-sublabel">最近站点</div>
+                <input id="f-nearest-go" type="text" readonly placeholder="定位后自动填入">
+              </div>
+              <div>
+                <div class="go-sublabel">驾车距离</div>
+                <input id="f-go" type="text" readonly placeholder="— km">
+              </div>
+            </div>
+            <div class="go-status-line idle" id="go-status">地址定位后自动计算</div>
+          </div>
+        </div>
+
+        <div class="fg full">
+          <label>评分</label>
+          <div class="star-picker" id="star-picker">
+            <span onclick="setRating(1)">★</span><span onclick="setRating(2)">★</span>
+            <span onclick="setRating(3)">★</span><span onclick="setRating(4)">★</span>
+            <span onclick="setRating(5)">★</span>
+          </div>
+        </div>
+        <div class="fg full">
+          <label for="f-notes">备注</label>
+          <textarea id="f-notes" placeholder="看房感受、优缺点…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveHouse()">保存记录</button>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">🏠</div>
+    <div>
+      <div class="logo-text">看房记录 <span class="vbadge">V1.1</span></div>
+      <div class="logo-sub">Stouffville Line Edition · SQLite · OSRM 驾车距离</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-outline btn-sm" onclick="importDb()" title="导入 SQLite（兼容 V1.0 旧数据）">⬆ 导入数据库</button>
+    <button class="btn btn-outline btn-sm" onclick="exportDb()">⬇ 导出数据库</button>
+    <button class="btn btn-primary" onclick="openAdd()">＋ 添加房源</button>
+  </div>
+</header>
+
+<main class="main">
+  <div class="stats">
+    <div class="stat"><div class="stat-label">总房源</div><div class="stat-value" id="s-total">0</div></div>
+    <div class="stat"><div class="stat-label">均价</div><div class="stat-value" id="s-avg">—</div></div>
+    <div class="stat">
+      <div class="stat-label">GO站最近</div>
+      <div class="stat-value" id="s-go" style="font-size:16px">—</div>
+      <div class="stat-sub" id="s-go-dist"></div>
+    </div>
+    <div class="stat"><div class="stat-label">最高评分</div><div class="stat-value gold" id="s-rating">—</div></div>
+  </div>
+
+  <div class="db-bar">
+    <span>💾</span>
+    <span>数据库: <strong id="db-size">—</strong></span>
+    <span style="color:var(--border)">|</span>
+    <span>最后保存: <strong id="db-saved">—</strong></span>
+    <span class="db-bar-sep"></span>
+    <span style="font-size:11px;color:var(--hint)">自动存储 IndexedDB · 导出 .sqlite 可拷贝至任意设备 · 兼容 V1.0 旧数据（自动迁移）</span>
+  </div>
+
+  <div class="confirm-bar hidden" id="confirm-bar">
+    <span style="font-size:13px;color:var(--red)">⚠ 确认删除这条记录？此操作无法撤销。</span>
+    <div style="display:flex;gap:8px;flex-shrink:0">
+      <button class="btn btn-outline btn-sm" onclick="cancelDel()">取消</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmDel()">确认删除</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="tab-t" onclick="switchView('table')">▦ 表格视图</button>
+    <button class="tab" id="tab-m" onclick="switchView('map')">◉ 地图视图</button>
+  </div>
+
+  <div id="view-table">
+    <div class="card">
+      <div class="card-toolbar">
+        <span class="card-toolbar-count" id="tbl-count">共 0 条记录</span>
+        <button class="btn btn-go btn-sm" id="btn-batch" onclick="batchUpdateGO()">🚆 批量更新 GO 站</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <colgroup>
+            <col style="width:19%"><col style="width:9%"><col style="width:10%"><col style="width:9%">
+            <col style="width:11%"><col style="width:12%"><col style="width:17%"><col style="width:7%"><col style="width:6%">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>地址</th><th>类型</th><th>结构</th><th>价格</th>
+              <th>对口小学</th><th>对口高中</th><th>🚆 最近 GO 站</th><th>评分</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="tbl-body"></tbody>
+        </table>
+      </div>
+      <div class="empty hidden" id="empty">
+        <h3>暂无看房记录</h3>
+        <p>点击右上角"添加房源"开始记录</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-map" class="hidden">
+    <div id="map"></div>
+  </div>
+</main>
+
+<input type="file" id="file-in" accept=".sqlite,.db" class="hidden" onchange="onImport(event)">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<script>
+'use strict';
+
+/* ─── State ─── */
+let SQL=null, db=null, map=null;
+let markers=[], currentRating=3, editId=null, delId=null;
+let geoTimer=null, geocoords=null;
+
+const IDB={name:'HouseTracker_v2', store:'sqlite', key:'db'};
+const TYPE={D:{l:'独立屋',c:'#1E6FD9'}, S:{l:'半独立屋',c:'#B96B0A'}, T:{l:'镇屋',c:'#1A7A50'}};
+
+/* ─── 4 目标 GO 站 (Stouffville 线，精确坐标) ─── */
+const TARGET_GO=[
+  {name:'Mount Joy',  lat:43.8993, lng:-79.2413},
+  {name:'Markham',    lat:43.8727, lng:-79.2636},
+  {name:'Unionville', lat:43.8541, lng:-79.2963},
+  {name:'Centennial', lat:43.8286, lng:-79.3188},
+];
+
+/* Stouffville 线全程站（地图背景参考，不参与距离计算） */
+const BG_GO=[
+  {n:'Kennedy',    lat:43.7312, lng:-79.2634},
+  {n:'Agincourt',  lat:43.7784, lng:-79.2785},
+  {n:'Milliken',   lat:43.8113, lng:-79.2781},
+  {n:'Centennial', lat:43.8286, lng:-79.3188},
+  {n:'Unionville', lat:43.8541, lng:-79.2963},
+  {n:'Markham',    lat:43.8727, lng:-79.2636},
+  {n:'Mount Joy',  lat:43.8993, lng:-79.2413},
+  {n:'Stouffville',lat:43.9706, lng:-79.2501},
+];
+
+const SAMPLE=[
+  {addr:'88 Bur Oak Ave, Markham, ON',       type:'D', struct:'4b3b2g',   price:1280000, elem:'Bur Oak PS',       high:'Bur Oak SS',      go_dist:1.1, nearest_go_station:'Markham GO',    lat:43.885, lng:-79.260, rating:4, notes:'靠近 Markham GO，步行约 15 分钟'},
+  {addr:'45 Unionville Gate, Markham, ON',   type:'S', struct:'3b2.5b1g', price:990000,  elem:'Unionville PS',    high:'Unionville HS',   go_dist:1.3, nearest_go_station:'Unionville GO', lat:43.856, lng:-79.296, rating:3, notes:'历史小镇，学区优秀'},
+  {addr:'12 Cornell Centre Blvd, Markham',   type:'T', struct:'3b2b1g',   price:820000,  elem:'Cornell Village',  high:'Bill Hogarth SS', go_dist:1.8, nearest_go_station:'Centennial GO', lat:43.831, lng:-79.317, rating:5, notes:'Cornell 新社区，配套完善'},
+  {addr:'201 Major Mackenzie Dr E, Markham', type:'D', struct:'5b4b3g',   price:1450000, elem:'P.E. Trudeau PS',  high:'P.E. Trudeau HS', go_dist:0.7, nearest_go_station:'Mount Joy GO',  lat:43.897, lng:-79.245, rating:3, notes:'超大地块，步行可达 Mount Joy'},
+  {addr:'67 Church St, Markham, ON',         type:'D', struct:'4b3.5b2g', price:1150000, elem:'Markham Village',  high:'Markham DHS',     go_dist:1.0, nearest_go_station:'Markham GO',    lat:43.874, lng:-79.264, rating:4, notes:'老城区，社区氛围成熟'},
+];
+
+/* ═══════════════════════════════════════════
+   DISTANCE: OSRM 驾车 + Haversine 备用
+═══════════════════════════════════════════ */
+function haversine(la1,ln1,la2,ln2){
+  const R=6371, r=Math.PI/180;
+  const dLa=(la2-la1)*r, dLn=(ln2-ln1)*r;
+  const a=Math.sin(dLa/2)**2 + Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(dLn/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+/**
+ * 使用 OSRM Table API 计算从 (lat,lng) 到 4 个目标 GO 站的驾车距离。
+ * 单次请求即可获取 4 条距离。若失败则退回 Haversine 直线距离。
+ * 返回 {station:{name,lat,lng}, dist:number(km), method:'driving'|'straight'}
+ */
+async function calcNearestGO(lat, lng){
+  try{
+    // OSRM Table API — 坐标格式: lng,lat; 第 0 个为房源，1-4 为目标站
+    const coords=[`${lng},${lat}`, ...TARGET_GO.map(s=>`${s.lng},${s.lat}`)].join(';');
+    const url=`https://router.project-osrm.org/table/v1/driving/${coords}?sources=0&destinations=1,2,3,4&annotations=distance`;
+    const res=await Promise.race([
+      fetch(url),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), 9000))
+    ]);
+    const data=await res.json();
+    // data.distances[0] = [d_to_stn1, d_to_stn2, d_to_stn3, d_to_stn4] (meters)
+    if(data.code==='Ok' && Array.isArray(data.distances?.[0])){
+      const dists=data.distances[0];
+      let minIdx=0, minVal=Infinity;
+      dists.forEach((d,i)=>{ if(d!=null && d<minVal){minVal=d; minIdx=i;} });
+      if(minVal<Infinity)
+        return{station:TARGET_GO[minIdx], dist:Math.round(minVal/100)/10, method:'driving'};
+    }
+  }catch(e){
+    console.warn('[OSRM] →', e.message, '→ 使用 Haversine 直线距离');
+  }
+  // 备用：Haversine
+  let minIdx=0, minVal=Infinity;
+  TARGET_GO.forEach((s,i)=>{ const d=haversine(lat,lng,s.lat,s.lng); if(d<minVal){minVal=d; minIdx=i;} });
+  return{station:TARGET_GO[minIdx], dist:Math.round(minVal*10)/10, method:'straight'};
+}
+
+/* ═══════════════════════════════════════════
+   IndexedDB
+═══════════════════════════════════════════ */
+function openIDB(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(IDB.name,1);
+    r.onupgradeneeded=e=>e.target.result.createObjectStore(IDB.store);
+    r.onsuccess=e=>res(e.target.result); r.onerror=rej;
+  });
+}
+async function saveIDB(){
+  if(!db)return;
+  const data=db.export();
+  const idb=await openIDB();
+  await new Promise((res,rej)=>{
+    const tx=idb.transaction(IDB.store,'readwrite');
+    tx.objectStore(IDB.store).put(data,IDB.key);
+    tx.oncomplete=res; tx.onerror=rej;
+  });
+  const now=new Date();
+  g('db-saved').textContent=now.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  g('db-size').textContent=fmtBytes(data.byteLength);
+}
+async function loadIDB(){
+  const idb=await openIDB();
+  return new Promise(res=>{
+    const tx=idb.transaction(IDB.store,'readonly');
+    const r=tx.objectStore(IDB.store).get(IDB.key);
+    r.onsuccess=e=>res(e.target.result||null); r.onerror=()=>res(null);
+  });
+}
+
+/* ═══════════════════════════════════════════
+   SQLite — Schema & Migration
+═══════════════════════════════════════════ */
+const SCHEMA=`CREATE TABLE IF NOT EXISTS houses(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  addr TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'D',
+  struct TEXT, price REAL DEFAULT 0, elem TEXT, high TEXT,
+  go_dist REAL DEFAULT 0, lat REAL, lng REAL,
+  rating INTEGER DEFAULT 3, notes TEXT,
+  nearest_go_station TEXT,
+  created_at TEXT DEFAULT(datetime('now','localtime'))
+);`;
+
+/**
+ * V1.0 → V1.1 兼容迁移：
+ *   若导入旧版数据（无 nearest_go_station 列），自动添加该列，旧记录该字段为 NULL。
+ *   界面中 NULL 值显示为"—"，并在每行显示"更新GO站"按钮供按需填充。
+ */
+function migrateDb(){
+  try{
+    const info=db.exec('PRAGMA table_info(houses)');
+    if(!info.length)return;
+    const cols=info[0].values.map(r=>r[1]);
+    if(!cols.includes('nearest_go_station')){
+      db.run('ALTER TABLE houses ADD COLUMN nearest_go_station TEXT');
+      console.info('[V1.1 migration] nearest_go_station column added (old data left NULL)');
+    }
+  }catch(e){console.warn('[migration]',e.message);}
+}
+
+function initSchema(){ db.run(SCHEMA); }
+function insertSample(){
+  const s=db.prepare('INSERT INTO houses(addr,type,struct,price,elem,high,go_dist,lat,lng,rating,notes,nearest_go_station)VALUES(?,?,?,?,?,?,?,?,?,?,?,?)');
+  SAMPLE.forEach(h=>s.run([h.addr,h.type,h.struct,h.price,h.elem,h.high,h.go_dist,h.lat,h.lng,h.rating,h.notes,h.nearest_go_station||null]));
+  s.free();
+}
+
+/* ═══════════════════════════════════════════
+   CRUD
+═══════════════════════════════════════════ */
+function getAll(){
+  const r=db.exec('SELECT * FROM houses ORDER BY id DESC');
+  if(!r.length)return[];
+  const cols=r[0].columns;
+  return r[0].values.map(row=>{const o={};cols.forEach((c,i)=>o[c]=row[i]);return o;});
+}
+function insertH(h){
+  const s=db.prepare('INSERT INTO houses(addr,type,struct,price,elem,high,go_dist,lat,lng,rating,notes,nearest_go_station)VALUES(?,?,?,?,?,?,?,?,?,?,?,?)');
+  s.run([h.addr,h.type,h.struct||null,h.price||0,h.elem||null,h.high||null,h.go_dist||0,h.lat||null,h.lng||null,h.rating||3,h.notes||null,h.nearest_go_station||null]);
+  s.free(); saveIDB();
+}
+function updateH(id,h){
+  const s=db.prepare('UPDATE houses SET addr=?,type=?,struct=?,price=?,elem=?,high=?,go_dist=?,lat=?,lng=?,rating=?,notes=?,nearest_go_station=? WHERE id=?');
+  s.run([h.addr,h.type,h.struct||null,h.price||0,h.elem||null,h.high||null,h.go_dist||0,h.lat||null,h.lng||null,h.rating||3,h.notes||null,h.nearest_go_station||null,id]);
+  s.free(); saveIDB();
+}
+function writeGoToDb(id, dist, station){
+  const s=db.prepare('UPDATE houses SET go_dist=?,nearest_go_station=? WHERE id=?');
+  s.run([dist,station,id]); s.free(); saveIDB();
+}
+function deleteH(id){ db.run('DELETE FROM houses WHERE id=?',[id]); saveIDB(); }
+
+/* ═══════════════════════════════════════════
+   Helpers
+═══════════════════════════════════════════ */
+function g(id){return document.getElementById(id);}
+function fmtP(p){if(!p&&p!==0)return'—';return p>=1e6?`$${(p/1e6).toFixed(2)}M`:`$${Math.round(p/1000)}K`;}
+function fmtS(s){if(!s)return'—';const m=s.match(/^(\d+)b([\d.]+)b(\d+)g$/i);return m?`${m[1]}卧/${m[2]}卫/${m[3]}车`:s;}
+function fmtStars(n){const r=parseInt(n)||0;return`<span class="stars"><span class="star-on">${'★'.repeat(r)}</span><span class="star-off">${'★'.repeat(5-r)}</span></span>`;}
+function fmtBytes(b){if(b<1024)return b+' B';if(b<1024*1024)return(b/1024).toFixed(1)+' KB';return(b/1024/1024).toFixed(2)+' MB';}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtGO(h){
+  if(h.nearest_go_station && h.go_dist)
+    return`<div class="go-cell"><span class="go-chip">🚆 ${esc(h.nearest_go_station)}</span><br><span style="font-size:11px;color:var(--muted)">${h.go_dist} km 驾车</span></div>`;
+  if(h.go_dist)
+    return`<span style="color:var(--muted)">${h.go_dist} km</span>`;
+  return`<span style="color:var(--hint)">—</span>`;
+}
+
+/* ═══════════════════════════════════════════
+   Stats
+═══════════════════════════════════════════ */
+function updateStats(houses){
+  g('s-total').textContent=houses.length+' 套';
+  if(!houses.length){
+    ['s-avg','s-go','s-rating'].forEach(id=>g(id).textContent='—');
+    g('s-go-dist').textContent=''; return;
+  }
+  const prices=houses.filter(h=>h.price>0).map(h=>h.price);
+  g('s-avg').textContent=prices.length?fmtP(prices.reduce((a,b)=>a+b,0)/prices.length):'—';
+  const withGO=houses.filter(h=>h.go_dist>0&&h.nearest_go_station);
+  if(withGO.length){
+    const best=withGO.reduce((a,b)=>a.go_dist<b.go_dist?a:b);
+    g('s-go').textContent=best.nearest_go_station;
+    g('s-go-dist').textContent=best.go_dist+' km';
+  }else{
+    const gos=houses.filter(h=>h.go_dist>0).map(h=>h.go_dist);
+    g('s-go').textContent=gos.length?Math.min(...gos)+' km':'—';
+    g('s-go-dist').textContent='';
+  }
+  g('s-rating').textContent='★'.repeat(Math.max(...houses.map(h=>h.rating||0)));
+}
+
+/* ═══════════════════════════════════════════
+   Table rendering
+═══════════════════════════════════════════ */
+function renderTable(){
+  const houses=getAll();
+  updateStats(houses);
+  g('tbl-count').textContent=`共 ${houses.length} 条记录`;
+  const tbody=g('tbl-body'), empty=g('empty');
+  if(!houses.length){tbody.innerHTML='';empty.classList.remove('hidden');return;}
+  empty.classList.add('hidden');
+  tbody.innerHTML=houses.map(h=>`
+    <tr>
+      <td title="${esc(h.addr)}">
+        <span class="geo-dot ${h.lat&&h.lng?'ok':'no'}" title="${h.lat&&h.lng?'已自动定位':'未定位，GO站无法计算'}"></span>${esc(h.addr)}
+      </td>
+      <td><span class="badge badge-${h.type}">${h.type}&nbsp;${TYPE[h.type]?.l||''}</span></td>
+      <td class="mono">${fmtS(h.struct)}</td>
+      <td style="font-weight:600">${fmtP(h.price)}</td>
+      <td style="color:var(--muted);font-size:12px" title="${esc(h.elem||'')}">${esc(h.elem||'—')}</td>
+      <td style="color:var(--muted);font-size:12px" title="${esc(h.high||'')}">${esc(h.high||'—')}</td>
+      <td>${fmtGO(h)}</td>
+      <td>${fmtStars(h.rating)}</td>
+      <td>
+        <div class="row-actions">
+          <button class="btn btn-go btn-xs" id="go-btn-${h.id}" onclick="updateOneGO(${h.id})"
+            title="${h.lat&&h.lng?'重新计算到4个GO站的驾车距离':'请先编辑并定位地址'}"
+            ${!h.lat||!h.lng?'disabled':''}>🚆</button>
+          <button class="btn btn-ghost btn-xs" onclick="openEdit(${h.id})" title="编辑">✎</button>
+          <button class="btn btn-ghost btn-xs" onclick="askDel(${h.id})" title="删除" style="color:var(--red)">✕</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+/* ═══════════════════════════════════════════
+   Map
+═══════════════════════════════════════════ */
+function initMap(){
+  if(map)return;
+  map=L.map('map').setView([43.865,-79.28],12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom:19
+  }).addTo(map);
+
+  // 全线小菱形（背景参考）
+  BG_GO.forEach(s=>{
+    const icon=L.divIcon({
+      html:`<div style="width:9px;height:9px;background:#B96B0A;transform:rotate(45deg);border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.3)"></div>`,
+      className:'', iconSize:[9,9], iconAnchor:[4,4]
+    });
+    L.marker([s.lat,s.lng],{icon,zIndexOffset:-500}).addTo(map)
+      .bindTooltip(`${s.n} GO`,{permanent:false,direction:'top',offset:[0,-8]});
+  });
+
+  // 4 目标站（突出显示）
+  TARGET_GO.forEach(s=>{
+    const icon=L.divIcon({
+      html:`<div style="background:#6B3FA0;color:white;padding:5px 10px 5px 8px;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 10px rgba(107,63,160,.45);border:2px solid white;font-family:system-ui;display:inline-flex;align-items:center;gap:5px">🚆 ${s.name}</div>`,
+      className:'', iconAnchor:[60,18]
+    });
+    L.marker([s.lat,s.lng],{icon,zIndexOffset:300}).addTo(map)
+      .bindPopup(`<b style="font-family:system-ui">${s.name} GO</b><br><span style="font-size:12px;color:#888;font-family:system-ui">Stouffville Line · V1.1 目标站</span>`);
+  });
+}
+
+function renderMapMarkers(){
+  if(!map)return;
+  markers.forEach(m=>map.removeLayer(m)); markers=[];
+  const houses=getAll().filter(h=>h.lat&&h.lng);
+  houses.forEach(h=>{
+    const col=TYPE[h.type]?.c||'#888';
+    const icon=L.divIcon({
+      html:`<div style="width:36px;height:36px;background:${col};border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;"><span style="transform:rotate(45deg);color:white;font-size:10px;font-weight:700;font-family:system-ui">${h.type}</span></div>`,
+      className:'', iconSize:[36,36], iconAnchor:[18,36], popupAnchor:[0,-38]
+    });
+    const goHtml=h.nearest_go_station
+      ?`<span style="background:#f0eafc;color:#6b3fa0;padding:2px 8px;border-radius:100px;font-size:11px;font-weight:600">🚆 ${esc(h.nearest_go_station)} · ${h.go_dist} km</span>`
+      :(h.go_dist?`${h.go_dist} km`:'—');
+    const popup=`
+      <div style="font-family:'DM Sans',system-ui,sans-serif;min-width:230px">
+        <p style="font-weight:700;font-size:14px;margin-bottom:7px">${esc(h.addr)}</p>
+        <p style="font-size:12px;color:#706e67;margin-bottom:3px">${TYPE[h.type]?.l||''} · ${fmtP(h.price)}</p>
+        <p style="font-size:12px;color:#706e67;margin-bottom:3px">结构: ${fmtS(h.struct)}</p>
+        <p style="font-size:12px;color:#706e67;margin-bottom:3px">小学: ${esc(h.elem||'—')}</p>
+        <p style="font-size:12px;color:#706e67;margin-bottom:5px">高中: ${esc(h.high||'—')}</p>
+        <div style="margin-bottom:6px">${goHtml}</div>
+        <div style="margin-bottom:8px;font-size:13px"><span style="color:#B96B0A">${'★'.repeat(h.rating||0)}</span><span style="color:#e5e3dc">${'★'.repeat(5-(h.rating||0))}</span></div>
+        ${h.notes?`<p style="font-size:12px;color:#9e9c95;border-top:1px solid #eee;padding-top:7px;font-style:italic">${esc(h.notes)}</p>`:''}
+        <div style="display:flex;gap:6px;margin-top:10px;border-top:1px solid #eee;padding-top:8px">
+          <button onclick="openEdit(${h.id})" style="flex:1;padding:5px;font-size:12px;border:1px solid #d9d7cf;border-radius:6px;cursor:pointer;background:#fff;font-family:system-ui">✎ 编辑</button>
+          <button onclick="updateOneGO(${h.id})" ${h.lat&&h.lng?'':'disabled'} id="map-go-btn-${h.id}"
+            style="flex:1;padding:5px;font-size:12px;border:1px solid #d8caf0;border-radius:6px;cursor:pointer;background:#f0eafc;color:#6b3fa0;font-family:system-ui;font-weight:600">🚆 更新GO站</button>
+          <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(h.addr)}" target="_blank"
+            style="flex:1;padding:5px;font-size:12px;border:1px solid #d9d7cf;border-radius:6px;cursor:pointer;background:#fff;text-decoration:none;color:#1a1916;text-align:center;font-family:system-ui;display:block">Maps ↗</a>
+        </div>
+      </div>`;
+    const m=L.marker([h.lat,h.lng],{icon}).addTo(map).bindPopup(popup,{maxWidth:270});
+    markers.push(m);
+  });
+  if(markers.length){
+    const grp=L.featureGroup(markers);
+    map.fitBounds(grp.getBounds().pad(0.25),{maxZoom:14});
+  }
+}
+
+/* ═══════════════════════════════════════════
+   View switching
+═══════════════════════════════════════════ */
+function switchView(v){
+  const isMap=v==='map';
+  g('view-table').classList.toggle('hidden', isMap);
+  g('view-map').classList.toggle('hidden', !isMap);
+  g('tab-t').classList.toggle('active', !isMap);
+  g('tab-m').classList.toggle('active', isMap);
+  if(isMap){initMap(); setTimeout(()=>{map.invalidateSize(); renderMapMarkers();},80);}
+}
+
+/* ═══════════════════════════════════════════
+   Modal
+═══════════════════════════════════════════ */
+function openAdd(){
+  editId=null; geocoords=null;
+  g('modal-title').textContent='添加房源';
+  ['f-addr','f-struct','f-price','f-elem','f-high','f-notes'].forEach(id=>g(id).value='');
+  g('f-type').value='D';
+  g('f-nearest-go').value=''; g('f-go').value='';
+  setRating(3);
+  setGeoSt('idle','输入地址后自动定位');
+  setGoSt('idle','地址定位后自动计算驾车距离');
+  g('overlay').classList.remove('hidden');
+  setTimeout(()=>g('f-addr').focus(),100);
+}
+
+function openEdit(id){
+  const h=getAll().find(x=>x.id===id);
+  if(!h)return;
+  editId=id;
+  geocoords=(h.lat&&h.lng)?{lat:h.lat,lng:h.lng}:null;
+  g('modal-title').textContent='编辑房源';
+  g('f-addr').value=h.addr||'';
+  g('f-type').value=h.type||'D';
+  g('f-struct').value=h.struct||'';
+  g('f-price').value=h.price||'';
+  g('f-elem').value=h.elem||'';
+  g('f-high').value=h.high||'';
+  g('f-notes').value=h.notes||'';
+  g('f-nearest-go').value=h.nearest_go_station||'';
+  g('f-go').value=h.go_dist>0?h.go_dist:'';
+  setRating(h.rating||3);
+  setGeoSt(geocoords?'ok':'idle', geocoords?`✓ 已定位 (${(h.lat).toFixed(4)}, ${(h.lng).toFixed(4)})`:'输入地址后自动定位');
+  setGoSt(h.nearest_go_station?'ok':'idle',
+    h.nearest_go_station?`✓ ${h.nearest_go_station} · ${h.go_dist} km 驾车`:'点击"⟳ 重算"更新驾车距离');
+  g('overlay').classList.remove('hidden');
+}
+
+function closeModal(){
+  g('overlay').classList.add('hidden');
+  clearTimeout(geoTimer);
+}
+
+function saveHouse(){
+  const addr=g('f-addr').value.trim();
+  if(!addr){toast('请输入房屋地址','err');return;}
+  const h={
+    addr, type:g('f-type').value,
+    struct:g('f-struct').value.trim(),
+    price:parseFloat(g('f-price').value)||0,
+    elem:g('f-elem').value.trim(),
+    high:g('f-high').value.trim(),
+    notes:g('f-notes').value.trim(),
+    rating:currentRating,
+    lat:geocoords?geocoords.lat:null,
+    lng:geocoords?geocoords.lng:null,
+    go_dist:parseFloat(g('f-go').value)||0,
+    nearest_go_station:g('f-nearest-go').value.trim()||null,
+  };
+  if(editId){updateH(editId,h);toast('记录已更新','ok');}
+  else{insertH(h);toast('房源已添加','ok');}
+  closeModal(); renderTable(); if(map)renderMapMarkers();
+}
+
+/* ═══════════════════════════════════════════
+   Geocoding (Nominatim)
+═══════════════════════════════════════════ */
+function scheduleGeo(){
+  clearTimeout(geoTimer);
+  const addr=g('f-addr').value.trim();
+  if(addr.length<6){
+    setGeoSt('idle','输入地址后自动定位');
+    setGoSt('idle','地址定位后自动计算驾车距离');
+    geocoords=null; g('f-nearest-go').value=''; g('f-go').value=''; return;
+  }
+  setGeoSt('loading','⟳ 正在搜索地址坐标…');
+  geoTimer=setTimeout(()=>doGeocode(addr), 1100);
+}
+
+async function doGeocode(addr){
+  try{
+    const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1&countrycodes=ca`;
+    const res=await fetch(url,{headers:{'Accept-Language':'zh-CN,en','User-Agent':'HouseTracker/1.1'}});
+    const data=await res.json();
+    if(data&&data.length>0){
+      geocoords={lat:parseFloat(data[0].lat), lng:parseFloat(data[0].lon)};
+      const place=data[0].display_name.split(',').slice(0,3).join(', ');
+      setGeoSt('ok',`✓ ${place}`);
+      // 自动计算 GO 站驾车距离
+      await runGoCalc(geocoords.lat, geocoords.lng, false);
+    }else{
+      geocoords=null;
+      g('f-nearest-go').value=''; g('f-go').value='';
+      setGeoSt('err','✕ 未找到该地址，请检查拼写或补充城市名');
+      setGoSt('idle','');
+    }
+  }catch(e){
+    geocoords=null;
+    setGeoSt('err','✕ 定位失败（请检查网络连接）');
+    setGoSt('idle','');
+  }
+}
+
+async function runGoCalc(lat, lng, isManual){
+  setGoSt('loading','⟳ 正在计算到 4 个 GO 站的驾车距离（OSRM）…');
+  try{
+    const r=await calcNearestGO(lat, lng);
+    const stnName=r.station.name+' GO';
+    g('f-nearest-go').value=stnName;
+    g('f-go').value=r.dist;
+    const methodNote=r.method==='driving'?'驾车':'直线（网络不可用时降级）';
+    setGoSt('ok',`✓ 最近: ${stnName} · ${r.dist} km（${methodNote}）`);
+    if(isManual) toast(`计算完成: ${stnName} · ${r.dist} km`,'ok');
+  }catch(e){
+    setGoSt('err','✕ 计算失败，请稍后点击"⟳ 重算"');
+  }
+}
+
+async function recalcGO(){
+  if(!geocoords){toast('请先输入地址并等待定位','err');return;}
+  const btn=g('btn-recalc');
+  btn.disabled=true; btn.textContent='⟳ 计算中…';
+  await runGoCalc(geocoords.lat, geocoords.lng, true);
+  btn.disabled=false; btn.textContent='⟳ 重算';
+}
+
+function setGeoSt(cls,msg){const e=g('geo-status');e.className=`geo-status ${cls}`;e.textContent=msg;}
+function setGoSt(cls,msg){const e=g('go-status');e.className=`go-status-line ${cls}`;e.textContent=msg;}
+
+/* ═══════════════════════════════════════════
+   Per-row GO update
+═══════════════════════════════════════════ */
+async function updateOneGO(id){
+  const h=getAll().find(x=>x.id===id);
+  if(!h||!h.lat||!h.lng){toast('该房源未定位，请先编辑并保存地址以自动定位','err');return;}
+  // 禁用当前行按钮（表格 + 地图弹窗）
+  ['go-btn-'+id, 'map-go-btn-'+id].forEach(bid=>{
+    const b=g(bid); if(b){b.disabled=true; b.textContent='⟳';}
+  });
+  try{
+    const r=await calcNearestGO(h.lat, h.lng);
+    const stnName=r.station.name+' GO';
+    writeGoToDb(id, r.dist, stnName);
+    renderTable(); if(map)renderMapMarkers();
+    const label=r.method==='driving'?'驾车':'直线';
+    toast(`${h.addr.split(',')[0]}: ${stnName} · ${r.dist} km（${label}）`,'ok');
+  }catch(e){
+    toast('更新失败，请重试','err');
+    const b=g('go-btn-'+id); if(b){b.disabled=false; b.textContent='🚆';}
+  }
+}
+
+/* ═══════════════════════════════════════════
+   Batch GO update
+═══════════════════════════════════════════ */
+async function batchUpdateGO(){
+  const houses=getAll().filter(h=>h.lat&&h.lng);
+  if(!houses.length){toast('没有已定位的房源可更新','err');return;}
+  const btn=g('btn-batch');
+  btn.disabled=true; btn.textContent=`⟳ 计算中 (0/${houses.length})…`;
+  let ok=0, fail=0;
+  for(const h of houses){
+    try{
+      const r=await calcNearestGO(h.lat, h.lng);
+      writeGoToDb(h.id, r.dist, r.station.name+' GO');
+      ok++;
+      btn.textContent=`⟳ 计算中 (${ok}/${houses.length})…`;
+    }catch(e){ fail++; }
+  }
+  btn.disabled=false; btn.textContent='🚆 批量更新 GO 站';
+  renderTable(); if(map)renderMapMarkers();
+  toast(`完成: ${ok} 套已更新${fail?`，${fail} 套失败`:''}`,'ok');
+}
+
+/* ═══════════════════════════════════════════
+   Rating, Delete, Export/Import, Toast
+═══════════════════════════════════════════ */
+function setRating(n){
+  currentRating=n;
+  document.querySelectorAll('#star-picker span').forEach((s,i)=>s.classList.toggle('on',i<n));
+}
+function askDel(id){
+  delId=id; g('confirm-bar').classList.remove('hidden');
+  g('confirm-bar').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function cancelDel(){delId=null; g('confirm-bar').classList.add('hidden');}
+function confirmDel(){
+  if(!delId)return;
+  deleteH(delId); delId=null;
+  g('confirm-bar').classList.add('hidden');
+  renderTable(); if(map)renderMapMarkers();
+  toast('记录已删除','ok');
+}
+function exportDb(){
+  if(!db)return;
+  const data=db.export();
+  const url=URL.createObjectURL(new Blob([data],{type:'application/x-sqlite3'}));
+  const a=document.createElement('a');
+  a.href=url; a.download=`看房记录_V1.1_${new Date().toISOString().slice(0,10)}.sqlite`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('SQLite 已导出，可拷贝至任意设备','ok');
+}
+function importDb(){g('file-in').click();}
+async function onImport(e){
+  const file=e.target.files[0]; if(!file)return;
+  try{
+    const buf=await file.arrayBuffer();
+    db=new SQL.Database(new Uint8Array(buf));
+    db.run(SCHEMA);   // 确保表存在
+    migrateDb();      // V1.0 → V1.1：添加缺失列，旧数据留 NULL
+    await saveIDB();
+    renderTable(); if(map)renderMapMarkers();
+    toast(`已导入 "${file.name}"（旧版数据自动迁移，缺失 GO 站信息可逐条更新）`,'ok');
+  }catch(err){
+    toast('导入失败，请确认为有效的 SQLite 文件','err');
+  }
+  e.target.value='';
+}
+function toast(msg,type='ok'){
+  const c=g('toasts');
+  const d=document.createElement('div');
+  d.className=`toast ${type}`;
+  d.innerHTML=`<span style="font-size:15px;flex-shrink:0">${type==='ok'?'✓':'✕'}</span> ${msg}`;
+  c.appendChild(d);
+  setTimeout(()=>{
+    d.style.cssText='opacity:0;transform:translateX(110%);transition:all .3s';
+    setTimeout(()=>d.remove(),320);
+  },3500);
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+/* ═══════════════════════════════════════════
+   Init
+═══════════════════════════════════════════ */
+async function init(){
+  try{
+    SQL=await initSqlJs({locateFile:f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}`});
+    const saved=await loadIDB();
+    if(saved){
+      db=new SQL.Database(saved);
+      db.run(SCHEMA);  // 确保表存在（空库情况）
+      migrateDb();     // 检测并升级 V1.0 → V1.1
+    }else{
+      db=new SQL.Database();
+      initSchema(); insertSample(); await saveIDB();
+    }
+    const raw=db.export();
+    g('db-size').textContent=fmtBytes(raw.byteLength);
+    g('db-saved').textContent='启动加载';
+    renderTable();
+    g('loading').style.display='none';
+  }catch(err){
+    g('loading').innerHTML=
+      `<div style="color:var(--red);text-align:center;padding:24px;max-width:420px">
+        <p style="font-size:18px;margin-bottom:8px">⚠ 初始化失败</p>
+        <p style="font-size:13px;color:var(--muted)">${esc(err.message)}</p>
+        <p style="font-size:12px;color:var(--hint);margin-top:10px">请确保浏览器支持 WebAssembly 并已连接网络</p>
+      </div>`;
+  }
+}
+init();
+</script>
+</body>
+</html>
