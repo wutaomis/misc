@@ -8,3 +8,4 @@ github pages for wutaomis
 
 [TD贷款工具](https://wutaomis.github.io/misc/td_mortgage_calculator.html)
 
+[看房工具](https://wutaomis.github.io/misc/app4rental.html)
