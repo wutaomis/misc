@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>看房记录 V1.3</title>
+<title>看房记录 V1.5</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
@@ -109,6 +109,10 @@ tbody td{padding:10px 14px;vertical-align:middle;overflow:hidden;text-overflow:e
 .empty{padding:64px 24px;text-align:center;color:var(--muted)}
 .empty h3{font-size:16px;font-weight:600;margin-bottom:8px;color:var(--text)}
 #map{height:calc(100vh - 230px);min-height:480px;border-radius:var(--rl);overflow:hidden;border:1px solid var(--border)}
+.embed-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden}
+.embed-toolbar{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.embed-toolbar span{font-size:13px;color:var(--muted)}
+.embed-frame{display:block;width:100%;height:calc(100vh - 248px);min-height:560px;border:0;background:var(--surface)}
 .leaflet-popup-content-wrapper{border-radius:var(--rl)!important;box-shadow:var(--shm)!important;border:1px solid var(--border)!important}
 .leaflet-popup-content{margin:14px 16px!important;font-family:'DM Sans',system-ui,sans-serif!important}
 .overlay{position:fixed;inset:0;background:rgba(20,20,18,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
@@ -152,7 +156,10 @@ textarea{resize:vertical;min-height:72px}
   .modal-body,.modal-head,.modal-foot{padding-left:16px;padding-right:16px}
   .header{height:auto;min-height:58px;gap:10px;align-items:flex-start;padding-top:10px;padding-bottom:10px}
   .header-right{flex-wrap:wrap;justify-content:flex-end}
+  .tabs{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tab{flex:0 0 auto;padding-left:14px;padding-right:14px}
   table{min-width:1320px}
+  .embed-frame{height:calc(100vh - 270px);min-height:520px}
   .row-actions{opacity:1}
   .action-cell .btn{width:40px;min-width:40px;height:40px;min-height:40px;flex-basis:40px}
 }
@@ -268,7 +275,7 @@ textarea{resize:vertical;min-height:72px}
   <div class="logo">
     <div class="logo-icon">🏠</div>
     <div>
-      <div class="logo-text">看房记录 <span class="vbadge">V1.3</span></div>
+      <div class="logo-text">看房记录 <span class="vbadge">V1.5</span></div>
       <div class="logo-sub">Stouffville Line Edition · Supabase · OSRM 驾车距离</div>
     </div>
   </div>
@@ -311,6 +318,8 @@ textarea{resize:vertical;min-height:72px}
   <div class="tabs">
     <button class="tab active" id="tab-t" onclick="switchView('table')">▦ 表格视图</button>
     <button class="tab" id="tab-m" onclick="switchView('map')">◉ 地图视图</button>
+    <button class="tab" id="tab-s" onclick="switchView('school')">⌕ 学校查询</button>
+    <button class="tab" id="tab-r" onclick="switchView('ranking')">★ 学校排名</button>
   </div>
 
   <div id="view-table">
@@ -345,6 +354,41 @@ textarea{resize:vertical;min-height:72px}
   <div id="view-map" class="hidden">
     <div id="map"></div>
   </div>
+
+  <div id="view-school" class="hidden">
+    <div class="embed-panel">
+      <div class="embed-toolbar">
+        <span>YRDSB School Locator</span>
+        <a class="btn btn-outline btn-sm" href="https://schoollocator.yrdsb.ca" target="_blank" rel="noopener">↗ 新窗口打开</a>
+      </div>
+      <iframe
+        class="embed-frame"
+        id="school-frame"
+        title="YRDSB School Locator"
+        src="https://schoollocator.yrdsb.ca"
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade"
+        allow="geolocation">
+      </iframe>
+    </div>
+  </div>
+
+  <div id="view-ranking" class="hidden">
+    <div class="embed-panel">
+      <div class="embed-toolbar">
+        <span>Compare School Rankings</span>
+        <a class="btn btn-outline btn-sm" href="https://www.compareschoolrankings.org" target="_blank" rel="noopener">↗ 新窗口打开</a>
+      </div>
+      <iframe
+        class="embed-frame"
+        id="ranking-frame"
+        title="Compare School Rankings"
+        src="https://www.compareschoolrankings.org"
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade">
+      </iframe>
+    </div>
+  </div>
 </main>
 
 <input type="file" id="file-in" accept=".sqlite,.db" class="hidden" onchange="onImport(event)">
@@ -362,7 +406,7 @@ let geoTimer=null, geocoords=null;
 let showingSortDir='desc';
 let housesCache=[];
 
-const APP_VERSION='1.3';
+const APP_VERSION='1.5';
 const SUPABASE_CONFIG={
   url:'https://muftliyimizceefbnely.supabase.co/rest/v1/',
   anonKey:'sb_publishable_TYWRmCX8OpjiBq3yVicJLw_SHJUC8s1',
@@ -462,7 +506,7 @@ const LEGACY_SCHEMA=`CREATE TABLE IF NOT EXISTS houses(
 );`;
 
 /**
- * V1.0/V1.1/V1.2 SQLite → V1.3 Supabase 兼容迁移：
+ * V1.0/V1.1/V1.2 SQLite → V1.5 Supabase 兼容迁移：
  *   若导入旧版数据（无 nearest_go_station 列），自动添加该列，旧记录该字段为 NULL。
  *   若缺少 record_status/showing_time，则补列；旧记录默认为"待看"，看房时间留空。
  */
@@ -474,17 +518,17 @@ function migrateLegacyDb(legacyDb){
     const cols=info[0].values.map(r=>r[1]);
     if(!cols.includes('nearest_go_station')){
       legacyDb.run('ALTER TABLE houses ADD COLUMN nearest_go_station TEXT');
-      console.info('[V1.3 migration] nearest_go_station column added (old data left NULL)');
+      console.info('[V1.5 migration] nearest_go_station column added (old data left NULL)');
       changed=true;
     }
     if(!cols.includes('record_status')){
       legacyDb.run("ALTER TABLE houses ADD COLUMN record_status TEXT NOT NULL DEFAULT '待看'");
-      console.info('[V1.3 migration] record_status column added');
+      console.info('[V1.5 migration] record_status column added');
       changed=true;
     }
     if(!cols.includes('showing_time')){
       legacyDb.run('ALTER TABLE houses ADD COLUMN showing_time TEXT');
-      console.info('[V1.3 migration] showing_time column added');
+      console.info('[V1.5 migration] showing_time column added');
       changed=true;
     }
     return changed;
@@ -783,10 +827,16 @@ function renderMapMarkers(){
 ═══════════════════════════════════════════ */
 function switchView(v){
   const isMap=v==='map';
-  g('view-table').classList.toggle('hidden', isMap);
+  const isSchool=v==='school';
+  const isRanking=v==='ranking';
+  g('view-table').classList.toggle('hidden', isMap||isSchool||isRanking);
   g('view-map').classList.toggle('hidden', !isMap);
-  g('tab-t').classList.toggle('active', !isMap);
+  g('view-school').classList.toggle('hidden', !isSchool);
+  g('view-ranking').classList.toggle('hidden', !isRanking);
+  g('tab-t').classList.toggle('active', !isMap&&!isSchool&&!isRanking);
   g('tab-m').classList.toggle('active', isMap);
+  g('tab-s').classList.toggle('active', isSchool);
+  g('tab-r').classList.toggle('active', isRanking);
   if(isMap){initMap(); setTimeout(()=>{map.invalidateSize(); renderMapMarkers();},80);}
 }
 
