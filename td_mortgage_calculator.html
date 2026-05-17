@@ -1,82 +1,126 @@
-
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TD Mortgage Calculator V1.1</title>
 <style>
-:root { --td-green: #1A6B3C; --td-light: #E8F4ED; }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-size: 14px; }
-.wrap { padding: 1.25rem 0; }
-.title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; }
-.logo-badge { background: var(--td-green); color: #fff; font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: var(--border-radius-md); letter-spacing: 0.04em; }
-.calc-title { font-size: 18px; font-weight: 500; color: var(--color-text-primary); }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin: 1rem 0; }
-.grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 1rem 0; }
-.field { display: flex; flex-direction: column; gap: 6px; }
-.field label { font-size: 12px; color: var(--color-text-secondary); }
-.field input[type=number], .field select { width: 100%; }
-.section { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1rem 1.25rem; margin-bottom: 1rem; }
-.section-hdr { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
-.metric { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.85rem 1rem; }
-.metric-label { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
-.metric-value { font-size: 22px; font-weight: 500; color: var(--color-text-primary); }
-.metric-value.green { color: var(--td-green); }
-.metric-sub { font-size: 11px; color: var(--color-text-tertiary); margin-top: 3px; }
-.bar-wrap { height: 10px; background: var(--color-background-secondary); border-radius: 5px; margin: 1rem 0 0.5rem; overflow: hidden; display: flex; }
-.bar-heloc { background: #1A6B3C; height: 100%; transition: width 0.3s; }
-.bar-pi { background: #378ADD; height: 100%; transition: width 0.3s; }
-.bar-int { background: #85B7EB; height: 100%; transition: width 0.3s; }
-.legend-row { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--color-text-secondary); }
-.dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 4px; vertical-align: middle; }
-.divider { border: none; border-top: 0.5px solid var(--color-border-tertiary); margin: 0.75rem 0; }
-.rate-note { font-size: 11px; color: var(--color-text-tertiary); margin-top: 4px; }
-.tab-row { display: flex; gap: 6px; margin-bottom: 12px; }
-.tab { padding: 5px 14px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-tertiary); font-size: 13px; cursor: pointer; background: transparent; color: var(--color-text-secondary); }
-.tab.active { background: var(--td-green); color: #fff; border-color: var(--td-green); }
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-th { text-align: left; color: var(--color-text-tertiary); font-weight: 500; padding: 6px 8px; border-bottom: 0.5px solid var(--color-border-tertiary); }
-td { padding: 6px 8px; border-bottom: 0.5px solid var(--color-border-tertiary); color: var(--color-text-primary); }
-tr:last-child td { border-bottom: none; }
-.tbl-wrap { max-height: 220px; overflow-y: auto; }
-.sched-int { color: #378ADD; }
-.sched-prin { color: var(--td-green); }
-.heloc-tag { font-size: 10px; background: #E8F4ED; color: #1A6B3C; border-radius: 3px; padding: 1px 5px; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; background: #f5f5f3; color: #1a1a18; min-height: 100vh; padding: 2rem 1rem; }
+  .container { max-width: 860px; margin: 0 auto; }
+  :root {
+    --td-green: #1A6B3C;
+    --td-light: #E8F4ED;
+    --border: #e0dfd8;
+    --bg-secondary: #f0efea;
+    --text-muted: #888780;
+    --text-hint: #b4b2a9;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+  }
+  .title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; }
+  .logo-badge { background: var(--td-green); color: #fff; font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: var(--radius-md); letter-spacing: 0.04em; }
+  .calc-title { font-size: 20px; font-weight: 500; color: #1a1a18; }
+  .version-tag { font-size: 11px; color: var(--text-hint); align-self: flex-end; margin-bottom: 2px; }
+  .section { background: #fff; border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.1rem 1.25rem; margin-bottom: 1rem; }
+  .section-hdr { font-size: 11px; font-weight: 500; color: var(--text-muted); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 1rem 0; }
+  .grid5 { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--text-muted); }
+  .field input[type=number], .field select {
+    width: 100%; padding: 7px 10px; border: 0.5px solid var(--border);
+    border-radius: var(--radius-md); font-size: 14px; background: #fff;
+    color: #1a1a18; outline: none; transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--td-green); }
+  input[type=range] { width: 100%; accent-color: var(--td-green); cursor: pointer; }
+  .rate-note { font-size: 11px; color: var(--text-hint); margin-top: 3px; }
+  .metric { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 0.85rem 1rem; }
+  .metric-label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+  .metric-value { font-size: 22px; font-weight: 500; color: #1a1a18; }
+  .metric-value.green { color: var(--td-green); }
+  .metric-sub { font-size: 11px; color: var(--text-hint); margin-top: 3px; }
+  .bar-wrap { height: 10px; background: var(--bg-secondary); border-radius: 5px; margin: 1rem 0 0.6rem; overflow: hidden; display: flex; }
+  .bar-heloc { background: #1A6B3C; height: 100%; transition: width 0.3s; }
+  .bar-pi    { background: #378ADD; height: 100%; transition: width 0.3s; }
+  .bar-int   { background: #85B7EB; height: 100%; transition: width 0.3s; }
+  .legend-row { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--text-muted); }
+  .dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 4px; vertical-align: middle; }
+  .tab-row { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tab {
+    padding: 5px 14px; border-radius: var(--radius-md);
+    border: 0.5px solid var(--border); font-size: 13px; cursor: pointer;
+    background: transparent; color: var(--text-muted); transition: all 0.15s;
+  }
+  .tab.active { background: var(--td-green); color: #fff; border-color: var(--td-green); }
+  .tab:hover:not(.active) { background: var(--bg-secondary); }
+  .tbl-wrap { max-height: 300px; overflow-y: auto; border: 0.5px solid var(--border); border-radius: var(--radius-md); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: right; color: var(--text-hint); font-weight: 500; padding: 8px 10px; border-bottom: 0.5px solid var(--border); background: #fafaf8; position: sticky; top: 0; z-index: 1; }
+  th:first-child { text-align: left; }
+  td { padding: 7px 10px; border-bottom: 0.5px solid var(--border); color: #1a1a18; text-align: right; }
+  td:first-child { text-align: left; }
+  tr:last-child td { border-bottom: none; }
+  tr.month-row:hover td { background: #fafaf8; }
+  /* 年度汇总行 */
+  tr.year-row td {
+    background: var(--td-light); color: var(--td-green);
+    font-weight: 500; border-top: 1px solid #9FE1CB;
+    border-bottom: 1px solid #9FE1CB;
+  }
+  tr.year-row td:first-child { border-radius: var(--radius-md) 0 0 var(--radius-md); }
+  tr.year-row td:last-child  { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+  /* 年度汇总视图专用行 */
+  tr.annual-row:hover td { background: #fafaf8; }
+  tr.annual-total td { background: var(--bg-secondary); font-weight: 500; border-top: 1px solid var(--border); }
+  .sched-int  { color: #378ADD; }
+  .sched-prin { color: var(--td-green); }
+  .total-bold { font-weight: 500; }
+  .slider-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-hint); margin-bottom: 4px; }
+  .info-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 0.75rem; }
+  .info-pill { font-size: 11px; background: var(--td-light); color: var(--td-green); border-radius: 20px; padding: 3px 10px; }
+  .divider-label { font-size: 10px; color: var(--text-hint); text-align: center; padding: 4px 0; letter-spacing: 0.04em; }
 </style>
+</head>
+<body>
+<div class="container">
 
-<div class="wrap">
-  <h2 class="sr-only">TD Mortgage Calculator with HELOC and Term components using Canadian compounding rules</h2>
   <div class="title-row">
     <span class="logo-badge">TD</span>
     <span class="calc-title">Mortgage Calculator</span>
+    <span class="version-tag">V1.1</span>
   </div>
 
+  <!-- 贷款设置 -->
   <div class="section">
     <div class="section-hdr">贷款设置</div>
-    <div class="grid2" style="gap:1rem; margin-bottom:1rem;">
+
+    <!-- 起始时间 + 总贷款 + HELOC -->
+    <div class="grid5" style="margin-bottom:1rem;">
+      <div class="field">
+        <label>起始年份</label>
+        <input type="number" id="startYear" value="2025" min="2020" max="2050" step="1" oninput="calc()">
+      </div>
+      <div class="field">
+        <label>起始月份</label>
+        <select id="startMonth" onchange="calc()">
+          <option value="1">1 月</option><option value="2">2 月</option><option value="3">3 月</option>
+          <option value="4">4 月</option><option value="5">5 月</option><option value="6">6 月</option>
+          <option value="7">7 月</option><option value="8">8 月</option><option value="9">9 月</option>
+          <option value="10">10 月</option><option value="11">11 月</option><option value="12" selected>12 月</option>
+        </select>
+      </div>
       <div class="field">
         <label>总贷款额 ($)</label>
         <input type="number" id="totalLoan" value="500000" step="10000" min="10000" oninput="calc()">
       </div>
       <div class="field">
-        <label>Revolving (HELOC) 部分 ($)</label>
+        <label>Revolving / HELOC ($)</label>
         <input type="number" id="heloc" value="150000" step="5000" min="0" oninput="syncHeloc()">
         <div class="rate-note" id="termShow">Term 部分: $350,000</div>
-      </div>
-    </div>
-    <div style="margin-bottom:1rem;">
-      <label style="font-size:12px; color:var(--color-text-secondary); display:block; margin-bottom:6px;">HELOC 比例滑块</label>
-      <input type="range" id="helocSlider" min="0" max="100" value="30" step="1" style="width:100%;" oninput="syncSlider()">
-    </div>
-    <div class="grid3" style="margin-top:0.5rem;">
-      <div class="field">
-        <label>基准利率 P (%)</label>
-        <input type="number" id="prime" value="4.45" step="0.05" min="0" oninput="calc()">
-      </div>
-      <div class="field">
-        <label>HELOC 利差 (P + ?%)</label>
-        <input type="number" id="helocSpread" value="0.20" step="0.05" oninput="calc()">
-      </div>
-      <div class="field">
-        <label>Term 利差 (P - ?%)</label>
-        <input type="number" id="termSpread" value="0.80" step="0.05" oninput="calc()">
       </div>
       <div class="field">
         <label>摊还年限</label>
@@ -86,9 +130,35 @@ tr:last-child td { border-bottom: none; }
         </select>
       </div>
     </div>
-    <div style="margin-top:0.75rem;" id="rateDisplay" class="rate-note"></div>
+
+    <!-- HELOC 滑块 -->
+    <div class="field" style="margin-bottom:1rem;">
+      <div class="slider-label">
+        <span>HELOC 比例</span>
+        <span id="sliderPct">30%</span>
+      </div>
+      <input type="range" id="helocSlider" min="0" max="100" value="30" step="1" oninput="syncSlider()">
+    </div>
+
+    <!-- 利率 -->
+    <div class="grid3">
+      <div class="field">
+        <label>基准利率 P (%)</label>
+        <input type="number" id="prime" value="4.45" step="0.05" min="0" oninput="calc()">
+      </div>
+      <div class="field">
+        <label>HELOC 利差 (P + ?%)</label>
+        <input type="number" id="helocSpread" value="0.20" step="0.05" oninput="calc()">
+      </div>
+      <div class="field">
+        <label>Term 利差 (P − ?%)</label>
+        <input type="number" id="termSpread" value="0.80" step="0.05" oninput="calc()">
+      </div>
+    </div>
+    <div class="info-row" id="infoRow"></div>
   </div>
 
+  <!-- 月供汇总 -->
   <div class="grid4">
     <div class="metric">
       <div class="metric-label">每月总还款</div>
@@ -106,14 +176,15 @@ tr:last-child td { border-bottom: none; }
       <div class="metric-sub" id="mTermSub">含本金 + 利息</div>
     </div>
     <div class="metric">
-      <div class="metric-label">Term 月利息</div>
+      <div class="metric-label">Term 首月利息</div>
       <div class="metric-value" id="mTermInt">—</div>
-      <div class="metric-sub" id="mTermPrin">本金还款额</div>
+      <div class="metric-sub" id="mTermPrin">首月本金还款额</div>
     </div>
   </div>
 
+  <!-- 月供构成 -->
   <div class="section" style="margin-top:1rem;">
-    <div class="section-hdr">月供构成</div>
+    <div class="section-hdr">月供构成（首月）</div>
     <div class="bar-wrap" id="barViz"></div>
     <div class="legend-row">
       <span><span class="dot" style="background:#1A6B3C"></span>HELOC 利息</span>
@@ -122,18 +193,21 @@ tr:last-child td { border-bottom: none; }
     </div>
   </div>
 
+  <!-- 摊还明细 -->
   <div class="section">
     <div class="section-hdr">摊还明细</div>
     <div class="tab-row">
-      <button class="tab active" id="tab12" onclick="showSched(12,this)">首 12 月</button>
-      <button class="tab" id="tab60" onclick="showSched(60,this)">首 5 年</button>
-      <button class="tab" id="tabAll" onclick="showSched(0,this)">全程</button>
+      <button class="tab active" id="tab-m12"  onclick="showSched('m12',this)">首 12 月</button>
+      <button class="tab"        id="tab-m60"  onclick="showSched('m60',this)">首 5 年</button>
+      <button class="tab"        id="tab-all"  onclick="showSched('all',this)">全程明细</button>
+      <button class="tab"        id="tab-year" onclick="showSched('year',this)">年度汇总</button>
     </div>
-    <div class="tbl-wrap">
-      <table id="schedTable">
+    <div class="tbl-wrap" id="schedWrap">
+      <!-- monthly table -->
+      <table id="monthTable">
         <thead>
           <tr>
-            <th>期</th>
+            <th>日期</th>
             <th>HELOC 利息</th>
             <th>Term 本金</th>
             <th>Term 利息</th>
@@ -143,125 +217,287 @@ tr:last-child td { border-bottom: none; }
         </thead>
         <tbody id="schedBody"></tbody>
       </table>
+      <!-- annual table -->
+      <table id="yearTable" style="display:none;">
+        <thead>
+          <tr>
+            <th>自然年</th>
+            <th>月数</th>
+            <th>HELOC 利息</th>
+            <th>Term 本金</th>
+            <th>Term 利息</th>
+            <th>年度总还款</th>
+            <th>期末 Term 余额</th>
+          </tr>
+        </thead>
+        <tbody id="yearBody"></tbody>
+      </table>
     </div>
+  </div>
+
+  <div style="font-size:11px; color:var(--text-hint); margin-top:0.5rem; text-align:right;">
+    计算基于加拿大标准：HELOC 日复利（≈30天/月）· Term 半年复利换算有效月利率 &nbsp;|&nbsp; V1.1
   </div>
 </div>
 
 <script>
-let schedData = [];
-let currentView = 12;
+const MONTHS_ZH = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+let schedData = [];   // per-month rows
+let yearData  = [];   // per-year summary
+let currentView = 'm12';
 
-function fmt(n) { return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+function fmt(n)  { return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 function fmtN(n) { return '$' + Math.round(n).toLocaleString(); }
+
+function getStartDate() {
+  const y = parseInt(document.getElementById('startYear').value)  || 2025;
+  const m = parseInt(document.getElementById('startMonth').value) || 1;
+  return { y, m };
+}
+
+function addMonth(y, m, delta) {
+  m += delta;
+  while (m > 12) { m -= 12; y++; }
+  while (m < 1)  { m += 12; y--; }
+  return { y, m };
+}
 
 function syncHeloc() {
   const total = +document.getElementById('totalLoan').value || 0;
-  const heloc = +document.getElementById('heloc').value || 0;
-  const pct = total > 0 ? Math.min(100, Math.round(heloc / total * 100)) : 0;
-  document.getElementById('helocSlider').value = pct;
+  const heloc = +document.getElementById('heloc').value   || 0;
+  const pct   = total > 0 ? Math.min(100, Math.round(heloc / total * 100)) : 0;
+  document.getElementById('helocSlider').value    = pct;
+  document.getElementById('sliderPct').textContent = pct + '%';
   calc();
 }
 
 function syncSlider() {
   const total = +document.getElementById('totalLoan').value || 0;
-  const pct = +document.getElementById('helocSlider').value;
+  const pct   = +document.getElementById('helocSlider').value;
+  document.getElementById('sliderPct').textContent  = pct + '%';
   document.getElementById('heloc').value = Math.round(total * pct / 100);
   calc();
 }
 
 function calc() {
-  const total = +document.getElementById('totalLoan').value || 0;
+  const total    = +document.getElementById('totalLoan').value  || 0;
   const helocAmt = Math.max(0, Math.min(total, +document.getElementById('heloc').value || 0));
-  const termAmt = total - helocAmt;
-  const prime = +document.getElementById('prime').value || 4.45;
-  const hs = +document.getElementById('helocSpread').value || 0.20;
-  const ts = +document.getElementById('termSpread').value || 0.80;
-  const amort = +document.getElementById('amort').value || 25;
+  const termAmt  = total - helocAmt;
+  const prime    = +document.getElementById('prime').value       || 4.45;
+  const hs       = +document.getElementById('helocSpread').value || 0.20;
+  const ts       = +document.getElementById('termSpread').value  || 0.80;
+  const amort    = +document.getElementById('amort').value       || 25;
 
   const helocRate = prime + hs;
-  const termRate = prime - ts;
+  const termRate  = Math.max(0, prime - ts);
 
-  document.getElementById('termShow').textContent = 'Term 部分: ' + fmtN(termAmt);
-  document.getElementById('rateDisplay').textContent =
-    'HELOC 利率: ' + helocRate.toFixed(2) + '% (P+' + hs + '%)  ·  Term 利率: ' + termRate.toFixed(2) + '% (P-' + ts + '%)';
+  // 同步滑块显示
+  const pct = total > 0 ? Math.round(helocAmt / total * 100) : 0;
+  document.getElementById('sliderPct').textContent  = pct + '%';
+  document.getElementById('helocSlider').value      = pct;
+  document.getElementById('termShow').textContent   = 'Term 部分: ' + fmtN(termAmt);
 
-  // HELOC: daily compounding within month (~30 days)
-  const dailyHeloc = helocRate / 100 / 365;
+  const { y: sy, m: sm } = getStartDate();
+  document.getElementById('infoRow').innerHTML =
+    '<span class="info-pill">起始: ' + sy + '年' + MONTHS_ZH[sm-1] + '</span>' +
+    '<span class="info-pill">HELOC: ' + helocRate.toFixed(2) + '% (P+' + hs + '%)</span>' +
+    '<span class="info-pill">Term: ' + termRate.toFixed(2) + '% (P−' + ts + '%)</span>' +
+    '<span class="info-pill">摊还 ' + amort + ' 年 · ' + (amort * 12) + ' 期</span>';
+
+  // HELOC：日复利，月利息固定（余额不变）
+  const dailyHeloc  = helocRate / 100 / 365;
   const helocMonthly = helocAmt * (Math.pow(1 + dailyHeloc, 30) - 1);
 
-  // Term: semi-annual compounding (Canadian standard)
-  // Effective monthly rate = (1 + nominal/2)^(1/6) - 1
-  const semiAnnual = termRate / 100 / 2;
-  const monthlyTerm = Math.pow(1 + semiAnnual, 1/6) - 1;
+  // Term：半年复利 → 有效月利率
+  const semiAnnual  = termRate / 100 / 2;
+  const monthlyTerm = Math.pow(1 + semiAnnual, 1 / 6) - 1;
   const n = amort * 12;
 
-  let termPayment = 0;
-  let firstTermInt = 0;
-  let firstTermPrin = 0;
-
+  let termPayment = 0, firstTermInt = 0, firstTermPrin = 0;
   if (termAmt > 0 && monthlyTerm > 0) {
-    termPayment = termAmt * monthlyTerm / (1 - Math.pow(1 + monthlyTerm, -n));
-    firstTermInt = termAmt * monthlyTerm;
+    termPayment   = termAmt * monthlyTerm / (1 - Math.pow(1 + monthlyTerm, -n));
+    firstTermInt  = termAmt * monthlyTerm;
     firstTermPrin = termPayment - firstTermInt;
   }
+  const totalMonthly = helocMonthly + termPayment;
 
-  const total_ = helocMonthly + termPayment;
+  // 顶部指标
+  document.getElementById('mTotal').textContent    = fmt(totalMonthly);
+  document.getElementById('mHeloc').textContent    = fmt(helocMonthly);
+  document.getElementById('mHelocRate').textContent = 'HELOC ' + helocRate.toFixed(2) + '% · 日复利';
+  document.getElementById('mTerm').textContent     = fmt(termPayment);
+  document.getElementById('mTermSub').textContent  = termRate.toFixed(2) + '% · 半年复利 · ' + amort + 'yr';
+  document.getElementById('mTermInt').textContent  = fmt(firstTermInt);
+  document.getElementById('mTermPrin').textContent = '首月本金: ' + fmt(firstTermPrin);
 
-  document.getElementById('mTotal').textContent = fmt(total_);
-  document.getElementById('mHeloc').textContent = fmt(helocMonthly);
-  document.getElementById('mHelocRate').textContent = 'HELOC 利率 ' + helocRate.toFixed(2) + '% · 日复利';
-  document.getElementById('mTerm').textContent = fmt(termPayment);
-  document.getElementById('mTermSub').textContent = termRate.toFixed(2) + '% · 半年复利 · ' + amort + 'yr';
-  document.getElementById('mTermInt').textContent = fmt(firstTermInt);
-  document.getElementById('mTermPrin').textContent = '本金还款: ' + fmt(firstTermPrin);
-
-  // Bar visualization
+  // 条形图
   const barWrap = document.getElementById('barViz');
-  barWrap.innerHTML = '';
-  if (total_ > 0) {
-    const ph = helocMonthly / total_ * 100;
-    const pp = firstTermPrin / total_ * 100;
-    const pi = firstTermInt / total_ * 100;
-    barWrap.innerHTML = `
-      <div class="bar-heloc" style="width:${ph}%"></div>
-      <div class="bar-pi" style="width:${pp}%"></div>
-      <div class="bar-int" style="width:${pi}%"></div>`;
-  }
+  if (totalMonthly > 0) {
+    const ph = (helocMonthly / totalMonthly * 100).toFixed(1);
+    const pp = (firstTermPrin / totalMonthly * 100).toFixed(1);
+    const pi = (firstTermInt  / totalMonthly * 100).toFixed(1);
+    barWrap.innerHTML =
+      '<div class="bar-heloc" style="width:' + ph + '%"></div>' +
+      '<div class="bar-pi"    style="width:' + pp + '%"></div>' +
+      '<div class="bar-int"   style="width:' + pi + '%"></div>';
+  } else { barWrap.innerHTML = ''; }
 
-  // Build full schedule
+  // ---- 生成逐月数据 ----
   schedData = [];
   let balance = termAmt;
-  for (let m = 1; m <= n; m++) {
+  for (let i = 0; i < n; i++) {
+    const date    = addMonth(sy, sm, i);
     const intPart = balance * monthlyTerm;
     const prinPart = termPayment - intPart;
-    balance -= prinPart;
-    if (balance < 0.01) balance = 0;
-    schedData.push({ m, helocInt: helocMonthly, prin: prinPart, int: intPart, bal: balance, total: helocMonthly + termPayment });
+    balance = Math.max(0, balance - prinPart);
+    schedData.push({
+      idx: i + 1,
+      year: date.y,
+      month: date.m,
+      label: date.y + '年' + MONTHS_ZH[date.m - 1],
+      helocInt: helocMonthly,
+      prin: prinPart,
+      int: intPart,
+      bal: balance,
+      total: helocMonthly + termPayment
+    });
   }
+
+  // ---- 生成年度汇总 ----
+  yearData = [];
+  let cur = null;
+  for (const r of schedData) {
+    if (!cur || cur.year !== r.year) {
+      if (cur) yearData.push(cur);
+      cur = { year: r.year, months: 0, helocInt: 0, prin: 0, int: 0, total: 0, bal: 0 };
+    }
+    cur.months++;
+    cur.helocInt += r.helocInt;
+    cur.prin     += r.prin;
+    cur.int      += r.int;
+    cur.total    += r.total;
+    cur.bal       = r.bal;
+  }
+  if (cur) yearData.push(cur);
 
   renderSched(currentView);
 }
 
-function showSched(n, btn) {
-  currentView = n;
+function showSched(mode, btn) {
+  currentView = mode;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
-  renderSched(n);
+  renderSched(mode);
 }
 
-function renderSched(n) {
-  const rows = n === 0 ? schedData : schedData.slice(0, n);
+function renderSched(mode) {
+  const mTbl = document.getElementById('monthTable');
+  const yTbl = document.getElementById('yearTable');
+
+  if (mode === 'year') {
+    mTbl.style.display = 'none';
+    yTbl.style.display = '';
+    renderYearTable();
+  } else {
+    mTbl.style.display = '';
+    yTbl.style.display = 'none';
+    renderMonthTable(mode);
+  }
+}
+
+function renderMonthTable(mode) {
+  let rows;
+  if (mode === 'm12') rows = schedData.slice(0, 12);
+  else if (mode === 'm60') rows = schedData.slice(0, 60);
+  else rows = schedData;  // all
+
   const tb = document.getElementById('schedBody');
-  tb.innerHTML = rows.map(r => `
-    <tr>
-      <td>${r.m}</td>
-      <td class="sched-int">${fmt(r.helocInt)}</td>
-      <td class="sched-prin">${fmt(r.prin)}</td>
-      <td class="sched-int">${fmt(r.int)}</td>
-      <td>${fmtN(r.bal)}</td>
-      <td style="font-weight:500">${fmt(r.total)}</td>
-    </tr>`).join('');
+  // 插入年度小计行（仅全程和5年视图）
+  const showYearSub = (mode !== 'm12');
+  let html = '';
+  let curYear = null;
+  let ySums = { helocInt:0, prin:0, int:0, total:0 };
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const isNewYear   = r.year !== curYear;
+    const isLastOfYear = (i === rows.length - 1) || (rows[i+1].year !== r.year);
+
+    if (isNewYear && showYearSub) {
+      if (curYear !== null) {
+        // 插入上一年合计行
+        html += yearSubRow(curYear, ySums);
+      }
+      curYear = r.year;
+      ySums = { helocInt: 0, prin: 0, int: 0, total: 0 };
+    } else if (isNewYear) {
+      curYear = r.year;
+    }
+
+    ySums.helocInt += r.helocInt;
+    ySums.prin     += r.prin;
+    ySums.int      += r.int;
+    ySums.total    += r.total;
+
+    html += '<tr class="month-row">' +
+      '<td>' + r.label + '</td>' +
+      '<td class="sched-int">'  + fmt(r.helocInt) + '</td>' +
+      '<td class="sched-prin">' + fmt(r.prin)     + '</td>' +
+      '<td class="sched-int">'  + fmt(r.int)      + '</td>' +
+      '<td>' + fmtN(r.bal) + '</td>' +
+      '<td class="total-bold">' + fmt(r.total)    + '</td>' +
+      '</tr>';
+
+    if (isLastOfYear && showYearSub) {
+      html += yearSubRow(curYear, ySums);
+      curYear = null;
+    }
+  }
+
+  tb.innerHTML = html;
+}
+
+function yearSubRow(year, s) {
+  return '<tr class="year-row">' +
+    '<td>▶ ' + year + '年 小计</td>' +
+    '<td>' + fmt(s.helocInt) + '</td>' +
+    '<td>' + fmt(s.prin)     + '</td>' +
+    '<td>' + fmt(s.int)      + '</td>' +
+    '<td>—</td>' +
+    '<td>' + fmt(s.total)    + '</td>' +
+    '</tr>';
+}
+
+function renderYearTable() {
+  const tb = document.getElementById('yearBody');
+  let totH=0, totP=0, totI=0, totT=0;
+  let html = yearData.map(r => {
+    totH += r.helocInt; totP += r.prin; totI += r.int; totT += r.total;
+    return '<tr class="annual-row">' +
+      '<td>' + r.year + ' 年</td>' +
+      '<td style="text-align:center">' + r.months + '</td>' +
+      '<td class="sched-int">'  + fmt(r.helocInt) + '</td>' +
+      '<td class="sched-prin">' + fmt(r.prin)     + '</td>' +
+      '<td class="sched-int">'  + fmt(r.int)      + '</td>' +
+      '<td class="total-bold">' + fmt(r.total)    + '</td>' +
+      '<td>' + fmtN(r.bal)     + '</td>' +
+      '</tr>';
+  }).join('');
+
+  html += '<tr class="annual-total">' +
+    '<td>合计</td>' +
+    '<td style="text-align:center">' + schedData.length + '</td>' +
+    '<td>' + fmt(totH) + '</td>' +
+    '<td>' + fmt(totP) + '</td>' +
+    '<td>' + fmt(totI) + '</td>' +
+    '<td>' + fmt(totT) + '</td>' +
+    '<td>—</td>' +
+    '</tr>';
+
+  tb.innerHTML = html;
 }
 
 calc();
 </script>
+</body>
+</html>
