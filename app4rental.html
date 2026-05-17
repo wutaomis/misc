@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>看房记录 V1.2</title>
+<title>看房记录 V1.3</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
@@ -66,8 +66,18 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden}
 .card-toolbar{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .card-toolbar-count{font-size:13px;color:var(--muted)}
-.table-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;min-width:1320px;border-collapse:collapse;font-size:13px;table-layout:fixed}
+col.col-addr{width:210px}
+col.col-house-type{width:96px}
+col.col-status{width:92px}
+col.col-showing{width:120px}
+col.col-struct{width:90px}
+col.col-price{width:96px}
+col.col-school{width:116px}
+col.col-go{width:160px}
+col.col-rating{width:92px}
+col.col-actions{width:142px}
 thead th{padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;background:var(--surface2);border-bottom:1px solid var(--border)}
 tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
 tbody tr:last-child{border-bottom:none}
@@ -75,9 +85,10 @@ tbody tr:hover{background:var(--surface2)}
 tbody tr:hover .row-actions{opacity:1}
 tbody td{padding:10px 14px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .go-cell{white-space:normal;line-height:1.4}
-.row-actions{display:flex;gap:5px;opacity:1;transition:opacity .15s;justify-content:flex-end}
-.action-cell{overflow:visible}
-.action-cell .btn{min-width:34px;min-height:34px;justify-content:center;padding:7px 9px}
+.rating-cell{overflow:visible;text-align:left}
+.row-actions{display:flex;gap:6px;opacity:1;transition:opacity .15s;justify-content:flex-end;align-items:center;flex-wrap:nowrap;min-width:120px}
+.action-cell{overflow:visible;white-space:nowrap}
+.action-cell .btn{width:36px;min-width:36px;height:36px;min-height:36px;justify-content:center;padding:0;flex:0 0 36px}
 .geo-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:5px;flex-shrink:0;vertical-align:middle}
 .geo-dot.ok{background:var(--green)}.geo-dot.no{background:var(--hint)}
 .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:100px;font-size:11px;font-weight:600}
@@ -92,7 +103,7 @@ tbody td{padding:10px 14px;vertical-align:middle;overflow:hidden;text-overflow:e
 .go-chip{display:inline-flex;align-items:center;gap:3px;background:var(--purple-l);color:var(--purple);font-size:11px;font-weight:600;padding:2px 7px;border-radius:100px;white-space:nowrap}
 .sort-btn{border:0;background:transparent;color:inherit;font:inherit;font-weight:600;text-transform:inherit;letter-spacing:inherit;cursor:pointer;padding:0;display:inline-flex;align-items:center;gap:4px}
 .sort-btn:hover{color:var(--text)}
-.stars{letter-spacing:1px;font-size:13px}
+.stars{display:inline-flex;align-items:center;gap:1px;letter-spacing:0;font-size:13px;white-space:nowrap;line-height:1}
 .star-on{color:var(--amber)}.star-off{color:var(--surface3)}
 .mono{font-family:monospace;font-size:12px}
 .empty{padding:64px 24px;text-align:center;color:var(--muted)}
@@ -141,9 +152,9 @@ textarea{resize:vertical;min-height:72px}
   .modal-body,.modal-head,.modal-foot{padding-left:16px;padding-right:16px}
   .header{height:auto;min-height:58px;gap:10px;align-items:flex-start;padding-top:10px;padding-bottom:10px}
   .header-right{flex-wrap:wrap;justify-content:flex-end}
-  table{min-width:1180px}
+  table{min-width:1320px}
   .row-actions{opacity:1}
-  .action-cell .btn{min-width:38px;min-height:38px}
+  .action-cell .btn{width:40px;min-width:40px;height:40px;min-height:40px;flex-basis:40px}
 }
 </style>
 </head>
@@ -257,13 +268,13 @@ textarea{resize:vertical;min-height:72px}
   <div class="logo">
     <div class="logo-icon">🏠</div>
     <div>
-      <div class="logo-text">看房记录 <span class="vbadge">V1.2</span></div>
-      <div class="logo-sub">Stouffville Line Edition · SQLite · OSRM 驾车距离</div>
+      <div class="logo-text">看房记录 <span class="vbadge">V1.3</span></div>
+      <div class="logo-sub">Stouffville Line Edition · Supabase · OSRM 驾车距离</div>
     </div>
   </div>
   <div class="header-right">
-    <button class="btn btn-outline btn-sm" onclick="importDb()" title="导入 SQLite（兼容 V1.0 旧数据）">⬆ 导入数据库</button>
-    <button class="btn btn-outline btn-sm" onclick="exportDb()">⬇ 导出数据库</button>
+    <button class="btn btn-outline btn-sm" onclick="importDb()" title="导入旧版 SQLite 到 Supabase">⬆ 导入 SQLite</button>
+    <button class="btn btn-outline btn-sm" onclick="exportInsertSql()">⬇ 导出 INSERT SQL</button>
     <button class="btn btn-primary" onclick="openAdd()">＋ 添加房源</button>
   </div>
 </header>
@@ -282,11 +293,11 @@ textarea{resize:vertical;min-height:72px}
 
   <div class="db-bar">
     <span>💾</span>
-    <span>数据库: <strong id="db-size">—</strong></span>
+    <span>数据库: <strong id="db-size">Supabase</strong></span>
     <span style="color:var(--border)">|</span>
-    <span>最后保存: <strong id="db-saved">—</strong></span>
+    <span>同步状态: <strong id="db-saved">—</strong></span>
     <span class="db-bar-sep"></span>
-    <span style="font-size:11px;color:var(--hint)">自动存储 IndexedDB · 导出 .sqlite 可拷贝至任意设备 · 兼容 V1.0/V1.1 旧数据（自动迁移）</span>
+    <span style="font-size:11px;color:var(--hint)">直接访问 Supabase · 两个用户共享同一张 houses 表 · 支持旧版 SQLite 一次性导入</span>
   </div>
 
   <div class="confirm-bar hidden" id="confirm-bar">
@@ -311,8 +322,8 @@ textarea{resize:vertical;min-height:72px}
       <div class="table-wrap">
         <table>
           <colgroup>
-            <col style="width:17%"><col style="width:8%"><col style="width:8%"><col style="width:10%"><col style="width:7%">
-            <col style="width:8%"><col style="width:9%"><col style="width:9%"><col style="width:12%"><col style="width:5%"><col style="width:7%">
+            <col class="col-addr"><col class="col-house-type"><col class="col-status"><col class="col-showing"><col class="col-struct">
+            <col class="col-price"><col class="col-school"><col class="col-school"><col class="col-go"><col class="col-rating"><col class="col-actions">
           </colgroup>
           <thead>
             <tr>
@@ -339,17 +350,25 @@ textarea{resize:vertical;min-height:72px}
 <input type="file" id="file-in" accept=".sqlite,.db" class="hidden" onchange="onImport(event)">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
 <script>
 'use strict';
 
 /* ─── State ─── */
-let SQL=null, db=null, map=null;
+let supabaseClient=null, map=null;
 let markers=[], currentRating=3, editId=null, delId=null;
 let geoTimer=null, geocoords=null;
 let showingSortDir='desc';
+let housesCache=[];
 
-const IDB={name:'HouseTracker_v2', store:'sqlite', key:'db'};
+const APP_VERSION='1.3';
+const SUPABASE_CONFIG={
+  url:'https://muftliyimizceefbnely.supabase.co/rest/v1/',
+  anonKey:'sb_publishable_TYWRmCX8OpjiBq3yVicJLw_SHJUC8s1',
+  table:'houses',
+};
+
 const TYPE={D:{l:'独立屋',c:'#1E6FD9'}, S:{l:'半独立屋',c:'#B96B0A'}, T:{l:'镇屋',c:'#1A7A50'}};
 const STATUS={
   '待看':{l:'待看',cls:'pending'},
@@ -428,41 +447,9 @@ async function calcNearestGO(lat, lng){
 }
 
 /* ═══════════════════════════════════════════
-   IndexedDB
+   Supabase + legacy SQLite import
 ═══════════════════════════════════════════ */
-function openIDB(){
-  return new Promise((res,rej)=>{
-    const r=indexedDB.open(IDB.name,1);
-    r.onupgradeneeded=e=>e.target.result.createObjectStore(IDB.store);
-    r.onsuccess=e=>res(e.target.result); r.onerror=rej;
-  });
-}
-async function saveIDB(){
-  if(!db)return;
-  const data=db.export();
-  const idb=await openIDB();
-  await new Promise((res,rej)=>{
-    const tx=idb.transaction(IDB.store,'readwrite');
-    tx.objectStore(IDB.store).put(data,IDB.key);
-    tx.oncomplete=res; tx.onerror=rej;
-  });
-  const now=new Date();
-  g('db-saved').textContent=now.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  g('db-size').textContent=fmtBytes(data.byteLength);
-}
-async function loadIDB(){
-  const idb=await openIDB();
-  return new Promise(res=>{
-    const tx=idb.transaction(IDB.store,'readonly');
-    const r=tx.objectStore(IDB.store).get(IDB.key);
-    r.onsuccess=e=>res(e.target.result||null); r.onerror=()=>res(null);
-  });
-}
-
-/* ═══════════════════════════════════════════
-   SQLite — Schema & Migration
-═══════════════════════════════════════════ */
-const SCHEMA=`CREATE TABLE IF NOT EXISTS houses(
+const LEGACY_SCHEMA=`CREATE TABLE IF NOT EXISTS houses(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   addr TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'D',
   record_status TEXT NOT NULL DEFAULT '待看',
@@ -475,29 +462,29 @@ const SCHEMA=`CREATE TABLE IF NOT EXISTS houses(
 );`;
 
 /**
- * V1.0/V1.1 → V1.2 兼容迁移：
+ * V1.0/V1.1/V1.2 SQLite → V1.3 Supabase 兼容迁移：
  *   若导入旧版数据（无 nearest_go_station 列），自动添加该列，旧记录该字段为 NULL。
  *   若缺少 record_status/showing_time，则补列；旧记录默认为"待看"，看房时间留空。
  */
-function migrateDb(){
+function migrateLegacyDb(legacyDb){
   try{
     let changed=false;
-    const info=db.exec('PRAGMA table_info(houses)');
+    const info=legacyDb.exec('PRAGMA table_info(houses)');
     if(!info.length)return false;
     const cols=info[0].values.map(r=>r[1]);
     if(!cols.includes('nearest_go_station')){
-      db.run('ALTER TABLE houses ADD COLUMN nearest_go_station TEXT');
-      console.info('[V1.2 migration] nearest_go_station column added (old data left NULL)');
+      legacyDb.run('ALTER TABLE houses ADD COLUMN nearest_go_station TEXT');
+      console.info('[V1.3 migration] nearest_go_station column added (old data left NULL)');
       changed=true;
     }
     if(!cols.includes('record_status')){
-      db.run("ALTER TABLE houses ADD COLUMN record_status TEXT NOT NULL DEFAULT '待看'");
-      console.info('[V1.2 migration] record_status column added');
+      legacyDb.run("ALTER TABLE houses ADD COLUMN record_status TEXT NOT NULL DEFAULT '待看'");
+      console.info('[V1.3 migration] record_status column added');
       changed=true;
     }
     if(!cols.includes('showing_time')){
-      db.run('ALTER TABLE houses ADD COLUMN showing_time TEXT');
-      console.info('[V1.2 migration] showing_time column added');
+      legacyDb.run('ALTER TABLE houses ADD COLUMN showing_time TEXT');
+      console.info('[V1.3 migration] showing_time column added');
       changed=true;
     }
     return changed;
@@ -505,38 +492,125 @@ function migrateDb(){
   return false;
 }
 
-function initSchema(){ db.run(SCHEMA); }
-function insertSample(){
-  const s=db.prepare('INSERT INTO houses(addr,type,record_status,showing_time,struct,price,elem,high,go_dist,lat,lng,rating,notes,nearest_go_station)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
-  SAMPLE.forEach(h=>s.run([h.addr,h.type,h.record_status,h.showing_time,h.struct,h.price,h.elem,h.high,h.go_dist,h.lat,h.lng,h.rating,h.notes,h.nearest_go_station||null]));
-  s.free();
+function isSupabaseConfigured(){
+  return /^https:\/\/.+\.supabase\.co(?:\/rest\/v1\/?)?$/.test(SUPABASE_CONFIG.url)
+    && !SUPABASE_CONFIG.url.includes('YOUR_PROJECT_REF')
+    && !SUPABASE_CONFIG.anonKey.includes('YOUR_SUPABASE');
 }
-
-/* ═══════════════════════════════════════════
-   CRUD
-═══════════════════════════════════════════ */
+function getSupabaseProjectUrl(){
+  return SUPABASE_CONFIG.url.replace(/\/rest\/v1\/?$/,'').replace(/\/$/,'');
+}
+function setSyncStatus(text){
+  g('db-saved').textContent=text;
+}
+function touchSynced(){
+  const now=new Date();
+  setSyncStatus(now.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));
+}
+function toDbHouse(h, includeId=false){
+  const row={
+    addr:h.addr,
+    type:h.type||'D',
+    record_status:h.record_status||'待看',
+    showing_time:h.showing_time||null,
+    struct:h.struct||null,
+    price:Number(h.price)||0,
+    elem:h.elem||null,
+    high:h.high||null,
+    go_dist:Number(h.go_dist)||0,
+    lat:h.lat==null?null:Number(h.lat),
+    lng:h.lng==null?null:Number(h.lng),
+    rating:Number(h.rating)||3,
+    notes:h.notes||null,
+    nearest_go_station:h.nearest_go_station||null,
+  };
+  if(includeId && h.id!=null)row.id=Number(h.id);
+  if(h.created_at)row.created_at=h.created_at;
+  return row;
+}
+function normalizeHouse(h){
+  return{
+    id:h.id,
+    addr:h.addr||'',
+    type:h.type||'D',
+    record_status:h.record_status||'待看',
+    showing_time:h.showing_time||'',
+    struct:h.struct||'',
+    price:Number(h.price)||0,
+    elem:h.elem||'',
+    high:h.high||'',
+    go_dist:Number(h.go_dist)||0,
+    lat:h.lat==null?null:Number(h.lat),
+    lng:h.lng==null?null:Number(h.lng),
+    rating:Number(h.rating)||3,
+    notes:h.notes||'',
+    nearest_go_station:h.nearest_go_station||'',
+    created_at:h.created_at||null,
+  };
+}
+function sortHouses(rows){
+  const dir=showingSortDir==='asc'?1:-1;
+  return [...rows].sort((a,b)=>{
+    const av=a.showing_time||'', bv=b.showing_time||'';
+    if(av && bv && av!==bv)return av>bv?dir:-dir;
+    if(av&&!bv)return -1;
+    if(!av&&bv)return 1;
+    return (Number(b.id)||0)-(Number(a.id)||0);
+  });
+}
 function getAll(){
-  const dir=showingSortDir==='asc'?'ASC':'DESC';
-  const r=db.exec(`SELECT * FROM houses ORDER BY CASE WHEN showing_time IS NULL OR showing_time='' THEN 1 ELSE 0 END, showing_time ${dir}, id DESC`);
-  if(!r.length)return[];
-  const cols=r[0].columns;
-  return r[0].values.map(row=>{const o={};cols.forEach((c,i)=>o[c]=row[i]);return o;});
+  return sortHouses(housesCache);
 }
-function insertH(h){
-  const s=db.prepare('INSERT INTO houses(addr,type,record_status,showing_time,struct,price,elem,high,go_dist,lat,lng,rating,notes,nearest_go_station)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
-  s.run([h.addr,h.type,h.record_status||'待看',h.showing_time||null,h.struct||null,h.price||0,h.elem||null,h.high||null,h.go_dist||0,h.lat||null,h.lng||null,h.rating||3,h.notes||null,h.nearest_go_station||null]);
-  s.free(); saveIDB();
+async function loadHouses(){
+  setSyncStatus('加载中…');
+  const {data,error}=await supabaseClient
+    .from(SUPABASE_CONFIG.table)
+    .select('*')
+    .order('showing_time',{ascending:showingSortDir==='asc', nullsFirst:false})
+    .order('id',{ascending:false});
+  if(error)throw error;
+  housesCache=(data||[]).map(normalizeHouse);
+  touchSynced();
+  renderTable(); if(map)renderMapMarkers();
 }
-function updateH(id,h){
-  const s=db.prepare('UPDATE houses SET addr=?,type=?,record_status=?,showing_time=?,struct=?,price=?,elem=?,high=?,go_dist=?,lat=?,lng=?,rating=?,notes=?,nearest_go_station=? WHERE id=?');
-  s.run([h.addr,h.type,h.record_status||'待看',h.showing_time||null,h.struct||null,h.price||0,h.elem||null,h.high||null,h.go_dist||0,h.lat||null,h.lng||null,h.rating||3,h.notes||null,h.nearest_go_station||null,id]);
-  s.free(); saveIDB();
+async function insertH(h){
+  const {data,error}=await supabaseClient
+    .from(SUPABASE_CONFIG.table)
+    .insert(toDbHouse(h))
+    .select()
+    .single();
+  if(error)throw error;
+  housesCache.push(normalizeHouse(data));
+  touchSynced();
 }
-function writeGoToDb(id, dist, station){
-  const s=db.prepare('UPDATE houses SET go_dist=?,nearest_go_station=? WHERE id=?');
-  s.run([dist,station,id]); s.free(); saveIDB();
+async function updateH(id,h){
+  const {data,error}=await supabaseClient
+    .from(SUPABASE_CONFIG.table)
+    .update(toDbHouse(h))
+    .eq('id',id)
+    .select()
+    .single();
+  if(error)throw error;
+  housesCache=housesCache.map(x=>Number(x.id)===Number(id)?normalizeHouse(data):x);
+  touchSynced();
 }
-function deleteH(id){ db.run('DELETE FROM houses WHERE id=?',[id]); saveIDB(); }
+async function writeGoToDb(id, dist, station){
+  const {data,error}=await supabaseClient
+    .from(SUPABASE_CONFIG.table)
+    .update({go_dist:dist, nearest_go_station:station})
+    .eq('id',id)
+    .select()
+    .single();
+  if(error)throw error;
+  housesCache=housesCache.map(x=>Number(x.id)===Number(id)?normalizeHouse(data):x);
+  touchSynced();
+}
+async function deleteH(id){
+  const {error}=await supabaseClient.from(SUPABASE_CONFIG.table).delete().eq('id',id);
+  if(error)throw error;
+  housesCache=housesCache.filter(x=>Number(x.id)!==Number(id));
+  touchSynced();
+}
 
 /* ═══════════════════════════════════════════
    Helpers
@@ -618,7 +692,7 @@ function renderTable(){
       <td style="color:var(--muted);font-size:12px" title="${esc(h.elem||'')}">${esc(h.elem||'—')}</td>
       <td style="color:var(--muted);font-size:12px" title="${esc(h.high||'')}">${esc(h.high||'—')}</td>
       <td>${fmtGO(h)}</td>
-      <td>${fmtStars(h.rating)}</td>
+      <td class="rating-cell">${fmtStars(h.rating)}</td>
       <td class="action-cell">
         <div class="row-actions">
           <button class="btn btn-go btn-xs" id="go-btn-${h.id}" onclick="updateOneGO(${h.id})"
@@ -659,7 +733,7 @@ function initMap(){
       className:'', iconAnchor:[60,18]
     });
     L.marker([s.lat,s.lng],{icon,zIndexOffset:300}).addTo(map)
-      .bindPopup(`<b style="font-family:system-ui">${s.name} GO</b><br><span style="font-size:12px;color:#888;font-family:system-ui">${esc(s.addr)}<br>Stouffville Line · V1.2 目标站</span>`);
+      .bindPopup(`<b style="font-family:system-ui">${s.name} GO</b><br><span style="font-size:12px;color:#888;font-family:system-ui">${esc(s.addr)}<br>Stouffville Line · V${APP_VERSION} 目标站</span>`);
   });
 }
 
@@ -762,7 +836,7 @@ function closeModal(){
   clearTimeout(geoTimer);
 }
 
-function saveHouse(){
+async function saveHouse(){
   const addr=g('f-addr').value.trim();
   if(!addr){toast('请输入房屋地址','err');return;}
   const h={
@@ -780,9 +854,13 @@ function saveHouse(){
     go_dist:parseFloat(g('f-go').value)||0,
     nearest_go_station:g('f-nearest-go').value.trim()||null,
   };
-  if(editId){updateH(editId,h);toast('记录已更新','ok');}
-  else{insertH(h);toast('房源已添加','ok');}
-  closeModal(); renderTable(); if(map)renderMapMarkers();
+  try{
+    if(editId){await updateH(editId,h);toast('记录已更新','ok');}
+    else{await insertH(h);toast('房源已添加','ok');}
+    closeModal(); renderTable(); if(map)renderMapMarkers();
+  }catch(e){
+    toast(`保存失败: ${e.message}`,'err');
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -803,7 +881,7 @@ function scheduleGeo(){
 async function doGeocode(addr){
   try{
     const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1&countrycodes=ca`;
-    const res=await fetch(url,{headers:{'Accept-Language':'zh-CN,en','User-Agent':'HouseTracker/1.2'}});
+    const res=await fetch(url,{headers:{'Accept-Language':'zh-CN,en','User-Agent':`HouseTracker/${APP_VERSION}`}});
     const data=await res.json();
     if(data&&data.length>0){
       geocoords={lat:parseFloat(data[0].lat), lng:parseFloat(data[0].lon)};
@@ -863,7 +941,7 @@ async function updateOneGO(id){
   try{
     const r=await calcNearestGO(h.lat, h.lng);
     const stnName=r.station.name+' GO';
-    writeGoToDb(id, r.dist, stnName);
+    await writeGoToDb(id, r.dist, stnName);
     renderTable(); if(map)renderMapMarkers();
     const label=r.method==='driving'?'驾车':'直线';
     toast(`${h.addr.split(',')[0]}: ${stnName} · ${r.dist} km（${label}）`,'ok');
@@ -885,7 +963,7 @@ async function batchUpdateGO(){
   for(const h of houses){
     try{
       const r=await calcNearestGO(h.lat, h.lng);
-      writeGoToDb(h.id, r.dist, r.station.name+' GO');
+      await writeGoToDb(h.id, r.dist, r.station.name+' GO');
       ok++;
       btn.textContent=`⟳ 计算中 (${ok}/${houses.length})…`;
     }catch(e){ fail++; }
@@ -907,36 +985,74 @@ function askDel(id){
   g('confirm-bar').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function cancelDel(){delId=null; g('confirm-bar').classList.add('hidden');}
-function confirmDel(){
+async function confirmDel(){
   if(!delId)return;
-  deleteH(delId); delId=null;
-  g('confirm-bar').classList.add('hidden');
-  renderTable(); if(map)renderMapMarkers();
-  toast('记录已删除','ok');
+  try{
+    await deleteH(delId); delId=null;
+    g('confirm-bar').classList.add('hidden');
+    renderTable(); if(map)renderMapMarkers();
+    toast('记录已删除','ok');
+  }catch(e){
+    toast(`删除失败: ${e.message}`,'err');
+  }
 }
-function exportDb(){
-  if(!db)return;
-  const data=db.export();
-  const url=URL.createObjectURL(new Blob([data],{type:'application/x-sqlite3'}));
+function sqlValue(v){
+  if(v==null || v==='')return'NULL';
+  if(typeof v==='number' && Number.isFinite(v))return String(v);
+  return `'${String(v).replace(/'/g,"''")}'`;
+}
+function rowsToInsertSql(rows, includeId=true){
+  const cols=[
+    ...(includeId?['id']:[]),
+    'addr','type','record_status','showing_time','struct','price','elem','high',
+    'go_dist','lat','lng','rating','notes','nearest_go_station','created_at'
+  ];
+  const values=rows.map(h=>{
+    const row=toDbHouse(h, includeId);
+    return `(${cols.map(c=>sqlValue(row[c])).join(', ')})`;
+  });
+  const seq=includeId
+    ?`\n\nselect setval(pg_get_serial_sequence('public.${SUPABASE_CONFIG.table}', 'id'), coalesce((select max(id) from public.${SUPABASE_CONFIG.table}), 1), true);`
+    :'';
+  return `insert into public.${SUPABASE_CONFIG.table} (${cols.join(', ')}) values\n${values.join(',\n')}\non conflict (id) do update set\n  addr=excluded.addr,\n  type=excluded.type,\n  record_status=excluded.record_status,\n  showing_time=excluded.showing_time,\n  struct=excluded.struct,\n  price=excluded.price,\n  elem=excluded.elem,\n  high=excluded.high,\n  go_dist=excluded.go_dist,\n  lat=excluded.lat,\n  lng=excluded.lng,\n  rating=excluded.rating,\n  notes=excluded.notes,\n  nearest_go_station=excluded.nearest_go_station,\n  created_at=excluded.created_at;${seq}\n`;
+}
+function downloadText(filename, text, type='text/plain;charset=utf-8'){
+  const url=URL.createObjectURL(new Blob([text],{type}));
   const a=document.createElement('a');
-  a.href=url; a.download=`看房记录_V1.2_${new Date().toISOString().slice(0,10)}.sqlite`;
+  a.href=url; a.download=filename;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  toast('SQLite 已导出，可拷贝至任意设备','ok');
+}
+function exportInsertSql(){
+  const rows=getAll();
+  if(!rows.length){toast('没有可导出的记录','err');return;}
+  downloadText(`看房记录_supabase_insert_V${APP_VERSION}_${new Date().toISOString().slice(0,10)}.sql`, rowsToInsertSql(rows, true), 'application/sql;charset=utf-8');
+  toast('INSERT SQL 已导出','ok');
 }
 function importDb(){g('file-in').click();}
 async function onImport(e){
   const file=e.target.files[0]; if(!file)return;
   try{
     const buf=await file.arrayBuffer();
-    db=new SQL.Database(new Uint8Array(buf));
-    db.run(SCHEMA);   // 确保表存在
-    migrateDb();      // V1.0/V1.1 → V1.2：添加缺失列，旧数据留 NULL
-    await saveIDB();
-    renderTable(); if(map)renderMapMarkers();
-    toast(`已导入 "${file.name}"（旧版数据自动迁移，缺失 GO 站信息可逐条更新）`,'ok');
+    const SQL=await initSqlJs({locateFile:f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}`});
+    const legacyDb=new SQL.Database(new Uint8Array(buf));
+    legacyDb.run(LEGACY_SCHEMA);
+    migrateLegacyDb(legacyDb);
+    const r=legacyDb.exec('SELECT * FROM houses ORDER BY id ASC');
+    if(!r.length){toast('SQLite 中没有 houses 数据','err');return;}
+    const cols=r[0].columns;
+    const rows=r[0].values.map(row=>{
+      const o={}; cols.forEach((c,i)=>o[c]=row[i]); return normalizeHouse(o);
+    });
+    downloadText(`看房记录_from_sqlite_insert_${new Date().toISOString().slice(0,10)}.sql`, rowsToInsertSql(rows, true), 'application/sql;charset=utf-8');
+
+    const uploadRows=rows.map(h=>toDbHouse(h, false));
+    const {error}=await supabaseClient.from(SUPABASE_CONFIG.table).insert(uploadRows);
+    if(error)throw error;
+    await loadHouses();
+    toast(`已导入 "${file.name}" 到 Supabase，并导出 INSERT SQL`,'ok');
   }catch(err){
-    toast('导入失败，请确认为有效的 SQLite 文件','err');
+    toast(`导入失败: ${err.message}`,'err');
   }
   e.target.value='';
 }
@@ -958,28 +1074,19 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 ═══════════════════════════════════════════ */
 async function init(){
   try{
-    SQL=await initSqlJs({locateFile:f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}`});
-    const saved=await loadIDB();
-    if(saved){
-      db=new SQL.Database(saved);
-      db.run(SCHEMA);  // 确保表存在（空库情况）
-      const migrated=migrateDb();     // 检测并升级 V1.0/V1.1 → V1.2
-      if(migrated) await saveIDB();
-    }else{
-      db=new SQL.Database();
-      initSchema(); insertSample(); await saveIDB();
+    if(!isSupabaseConfigured()){
+      throw new Error('请先在 SUPABASE_CONFIG 中填写 url 和 anonKey，并在 Supabase 中创建 houses 表');
     }
-    const raw=db.export();
-    g('db-size').textContent=fmtBytes(raw.byteLength);
-    g('db-saved').textContent='启动加载';
-    renderTable();
+    supabaseClient=window.supabase.createClient(getSupabaseProjectUrl(), SUPABASE_CONFIG.anonKey);
+    g('db-size').textContent=SUPABASE_CONFIG.table;
+    await loadHouses();
     g('loading').style.display='none';
   }catch(err){
     g('loading').innerHTML=
       `<div style="color:var(--red);text-align:center;padding:24px;max-width:420px">
         <p style="font-size:18px;margin-bottom:8px">⚠ 初始化失败</p>
         <p style="font-size:13px;color:var(--muted)">${esc(err.message)}</p>
-        <p style="font-size:12px;color:var(--hint);margin-top:10px">请确保浏览器支持 WebAssembly 并已连接网络</p>
+        <p style="font-size:12px;color:var(--hint);margin-top:10px">请确认 Supabase URL、Anon Key、RLS 策略和网络连接</p>
       </div>`;
   }
 }
