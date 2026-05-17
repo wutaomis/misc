@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>加拿大银行贷款额度估算 · GDS/TDS · Ontario · v2.5</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f2ec;--s1:#fff;--s2:#eee9e0;--s3:#e4dfd4;
+  --bdr:#ddd8cc;--bdr2:#c8c0b0;
+  --ink:#1a1810;--ink2:#58544c;--ink3:#98948c;
+  --g:#286030;--gb:#e4f4e8;--gl:#389048;
+  --r:#781c1c;--rb:#fce8e8;--rl:#b83030;
+  --o:#784c10;--ob:#fdf2dc;--ol:#b07820;
+  --b:#183870;--bb:#e4eef8;--bl:#2858a8;
+  --p:#4a1878;--pb:#f0e8fc;--pl:#6828b0;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-family:'Outfit',sans-serif;min-height:100vh;font-size:13px;}
+
+.topbar{background:var(--ink);color:#ede9e2;padding:14px 20px;display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;}
+.topbar h1{font-family:'Instrument Serif',serif;font-size:22px;font-weight:400;white-space:nowrap;}
+.topbar h1 em{color:#b8f04a;font-style:italic;}
+.top-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:#888;line-height:1.7;}
+.version-badge{font-family:'JetBrains Mono',monospace;font-size:9px;background:#b8f04a;color:#1a1810;padding:2px 7px;border-radius:3px;font-weight:600;align-self:center;margin-left:4px;}
+
+.layout{display:grid;grid-template-columns:280px 1fr;min-height:calc(100vh - 52px);}
+@media(max-width:700px){.layout{grid-template-columns:1fr;}}
+
+.side{background:var(--s1);border-right:1px solid var(--bdr);padding:14px 12px;overflow-y:auto;}
+.sec{margin-bottom:18px;}
+.sec-ttl{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);padding-bottom:5px;border-bottom:1px solid var(--bdr);margin-bottom:9px;}
+
+.ig{background:var(--s2);border-radius:6px;padding:9px 10px;margin-bottom:7px;}
+.ig-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:5px;}
+.ig-row{display:flex;align-items:center;gap:4px;}
+.ig-pfx{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink3);flex-shrink:0;}
+.ig input[type=number]{background:var(--s1);border:1px solid var(--bdr);border-radius:4px;padding:4px 7px;font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;color:var(--ink);width:100%;outline:none;transition:border-color .15s;}
+.ig input:focus{border-color:var(--bl);}
+.ig-hint{font-size:9px;color:var(--ink3);margin-top:3px;}
+.ig-derived{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ol);margin-top:2px;}
+
+.ig-2col{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:7px;}
+.ig-sm{background:var(--s2);border-radius:6px;padding:7px 9px;min-width:0;}
+.ig-sm .ig-lbl{font-size:8.5px;}
+.ig-sm input[type=number]{background:var(--s1);border:1px solid var(--bdr);border-radius:4px;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--ink);outline:none;transition:border-color .15s;font-size:13px;padding:3px 4px;width:100%;}
+.ig-sm input:focus{border-color:var(--bl);}
+
+.toggle-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.toggle-lbl{font-size:11px;color:var(--ink2);flex:1;}
+.toggle{width:36px;height:20px;background:var(--bdr2);border-radius:10px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;}
+.toggle.on{background:var(--bl);}
+.toggle::after{content:'';position:absolute;left:3px;top:3px;width:14px;height:14px;background:#fff;border-radius:50%;transition:left .2s;}
+.toggle.on::after{left:19px;}
+
+.content{padding:14px;overflow-x:auto;}
+
+/* KPI cards */
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:14px;}
+.kc{background:var(--s1);border:1px solid var(--bdr);border-radius:7px;padding:11px 12px;position:relative;overflow:hidden;}
+.kc::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
+.kc.g::before{background:var(--gl);}
+.kc.r::before{background:var(--rl);}
+.kc.b::before{background:var(--bl);}
+.kc.o::before{background:var(--ol);}
+.kc.p::before{background:var(--pl);}
+.kl{font-size:9px;color:var(--ink3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;}
+.kv{font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:600;line-height:1;}
+.kc.g .kv{color:var(--g);}
+.kc.r .kv{color:var(--r);}
+.kc.b .kv{color:var(--b);}
+.kc.o .kv{color:var(--o);}
+.kc.p .kv{color:var(--pl);}
+.ks{font-size:9px;color:var(--ink3);margin-top:3px;}
+
+/* Gauge bar */
+.gauge-wrap{margin-bottom:14px;}
+.gauge-card{background:var(--s1);border:1px solid var(--bdr);border-radius:7px;padding:14px 16px;margin-bottom:8px;}
+.gauge-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+.gauge-title{font-size:11px;font-weight:600;color:var(--ink2);}
+.gauge-pct{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;}
+.gauge-track{background:var(--s2);border-radius:4px;height:10px;position:relative;overflow:visible;}
+.gauge-fill{height:100%;border-radius:4px;transition:width .4s ease;}
+.gauge-limit{position:absolute;top:-4px;bottom:-4px;width:2px;border-radius:2px;}
+.gauge-limit-lbl{position:absolute;top:-18px;font-family:'JetBrains Mono',monospace;font-size:8px;transform:translateX(-50%);white-space:nowrap;}
+.gauge-legend{display:flex;gap:12px;margin-top:7px;flex-wrap:wrap;}
+.gauge-dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:middle;}
+.gauge-leg-item{font-size:9px;color:var(--ink3);}
+
+/* Breakdown table */
+.breakdown-card{background:var(--s1);border:1px solid var(--bdr);border-radius:7px;overflow:hidden;margin-bottom:10px;}
+.breakdown-head{background:var(--s2);padding:9px 13px;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;}
+.breakdown-head-title{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink2);font-weight:600;}
+.brow{display:flex;justify-content:space-between;align-items:center;padding:6px 13px;border-bottom:1px solid var(--bdr);}
+.brow:last-child{border-bottom:none;}
+.brow.total{background:var(--s2);font-weight:700;}
+.brow.header{background:var(--s3);font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);}
+.brow.ok{background:var(--gb);}
+.brow.warn{background:var(--ob);}
+.brow.fail{background:var(--rb);}
+.blbl{font-size:11px;color:var(--ink2);}
+.bval{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;}
+.bval.g{color:var(--gl);}
+.bval.r{color:var(--rl);}
+.bval.o{color:var(--ol);}
+.bval.b{color:var(--bl);}
+
+/* Scenario tabs */
+.stabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+.stab{font-family:'JetBrains Mono',monospace;font-size:9px;padding:5px 12px;border-radius:3px;border:1px solid var(--bdr);background:var(--s1);color:var(--ink2);cursor:pointer;transition:.15s;text-transform:uppercase;letter-spacing:.08em;}
+.stab.on{background:var(--ink);color:var(--bg);border-color:var(--ink);}
+.stab:hover:not(.on){border-color:var(--ink2);}
+
+/* Info box */
+.info-box{background:var(--bb);border:1px solid #93c5fd;border-radius:6px;padding:10px 12px;font-size:10px;color:var(--b);line-height:1.6;margin-bottom:10px;}
+.warn-box{background:var(--ob);border:1px solid #fbbf24;border-radius:6px;padding:10px 12px;font-size:10px;color:var(--o);line-height:1.6;margin-bottom:10px;}
+.ok-box{background:var(--gb);border:1px solid #6ee7b7;border-radius:6px;padding:10px 12px;font-size:10px;color:var(--g);line-height:1.6;margin-bottom:10px;}
+.fail-box{background:var(--rb);border:1px solid #fca5a5;border-radius:6px;padding:10px 12px;font-size:10px;color:var(--r);line-height:1.6;margin-bottom:10px;}
+
+.section-title{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--bdr);}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:900px){.two-col{grid-template-columns:1fr;}}
+
+.note{font-size:9px;color:var(--ink3);line-height:1.5;margin-top:6px;}
+
+/* Stress test meter */
+.stress-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:12px;}
+.stress-card{background:var(--s1);border:1px solid var(--bdr);border-radius:7px;padding:11px 12px;}
+.stress-title{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:6px;}
+.stress-rate{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:var(--ink);margin-bottom:2px;}
+.stress-max{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--bl);}
+.stress-badge{display:inline-block;padding:2px 7px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;text-transform:uppercase;margin-top:4px;}
+.stress-badge.pass{background:var(--gb);color:var(--g);}
+.stress-badge.fail{background:var(--rb);color:var(--r);}
+
+.divider{height:1px;background:var(--bdr);margin:14px 0;}
+
+.formula-box{background:var(--s2);border-radius:6px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink2);line-height:1.8;margin-bottom:10px;}
+.formula-box span.hl{color:var(--bl);font-weight:600;}
+.formula-box span.r{color:var(--rl);}
+.formula-box span.g{color:var(--gl);}
+
+/* HELOC mode selector */
+.mode-btns{display:flex;flex-direction:column;gap:4px;margin-bottom:8px;}
+.mode-btn{display:flex;align-items:flex-start;gap:7px;padding:7px 9px;border-radius:5px;border:1px solid var(--bdr);background:var(--s1);cursor:pointer;transition:.15s;text-align:left;}
+.mode-btn.on{border-color:var(--bl);background:var(--bb);}
+.mode-btn:hover:not(.on){border-color:var(--ink3);}
+.mode-radio{width:13px;height:13px;border-radius:50%;border:2px solid var(--bdr2);flex-shrink:0;margin-top:1px;transition:.15s;position:relative;}
+.mode-btn.on .mode-radio{border-color:var(--bl);}
+.mode-btn.on .mode-radio::after{content:'';position:absolute;inset:2px;border-radius:50%;background:var(--bl);}
+.mode-name{font-size:10px;font-weight:600;color:var(--ink2);line-height:1.3;}
+.mode-btn.on .mode-name{color:var(--b);}
+.mode-desc{font-size:9px;color:var(--ink3);margin-top:1px;line-height:1.4;}
+.mode-tag{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:7px;padding:1px 5px;border-radius:2px;margin-left:4px;vertical-align:middle;font-weight:700;}
+.tag-rbc{background:var(--ob);color:var(--o);}
+.tag-loose{background:var(--bb);color:var(--b);}
+.tag-amort{background:var(--rb);color:var(--r);}
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>加拿大银行 <em>贷款额度估算</em></h1>
+  <span class="version-badge">v2.5</span>
+  <div class="top-sub">GDS ≤ 39% · TDS ≤ 44% · OSFI Stress Test · Ontario<br>HELOC三种口径：3%固定 / 利率÷12 / 压力测试利率25yr摊还 · 2025/2026</div>
+</div>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <div class="side">
+
+    <div class="sec">
+      <div class="sec-ttl">收入信息</div>
+      <div class="ig">
+        <div class="ig-lbl">年度雇佣收入（税前）</div>
+        <div class="ig-row"><span class="ig-pfx">$</span>
+          <input type="number" id="v-employment" value="105000" step="1000" min="0">
+        </div>
+        <div class="ig-hint">T4 Box 14 · 雇主工资总收入（税前）</div>
+      </div>
+      <div class="ig">
+        <div class="ig-lbl">年度净租金收入</div>
+        <div class="ig-row"><span class="ig-pfx">$</span>
+          <input type="number" id="v-rental-net" value="0" step="100">
+        </div>
+        <div class="ig-hint">租金总收入 − 运营支出（不含折旧）<br>正数=盈利 / 负数=亏损</div>
+        <div class="ig-derived" id="d-rental-offset">银行通常只计50%净租金</div>
+      </div>
+      <div class="ig">
+        <div class="ig-lbl">其他年度收入</div>
+        <div class="ig-row"><span class="ig-pfx">$</span>
+          <input type="number" id="v-other-income" value="0" step="500" min="0">
+        </div>
+        <div class="ig-hint">股息/利息/自雇收入（需证明2年均值）</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-ttl">新房参数</div>
+      <div class="ig">
+        <div class="ig-lbl">目标房产价格</div>
+        <div class="ig-row"><span class="ig-pfx">$</span>
+          <input type="number" id="v-price" value="800000" step="10000" min="0">
+        </div>
+        <div class="ig-hint">购置价格（含HST如适用）</div>
+      </div>
+      <div class="ig">
+        <div class="ig-lbl">首付金额</div>
+        <div class="ig-row"><span class="ig-pfx">$</span>
+          <input type="number" id="v-down" value="160000" step="5000" min="0">
+        </div>
+        <div class="ig-derived" id="d-down-pct">—</div>
+      </div>
+      <div class="ig" style="background:var(--bb);border:1px solid #bfdbfe;">
+        <div class="ig-lbl" style="color:var(--b)">贷款额（房价 − 首付）</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700;color:var(--b);padding:2px 0 1px;" id="d-loan-amount">—</div>
+        <div class="ig-hint">不含CMHC保险费 · 实际申请贷款本金</div>
+      </div>
+      <div class="ig">
+        <div class="ig-lbl">贷款利率（实际利率）</div>
+        <div class="ig-row">
+          <input type="number" id="v-rate" value="4.79" step="0.05" min="0" max="20" style="width:70%">
+          <span class="ig-pfx">%</span>
+        </div>
+        <div class="ig-hint">5年固定利率报价（浮动利率请填实际值）</div>
+        <div class="ig-derived" id="d-stress-rate">—</div>
+      </div>
+      <div class="ig-2col">
+        <div class="ig-sm">
+          <div class="ig-lbl">摊还年限</div>
+          <div class="ig-row"><input type="number" id="v-amort" value="25" step="1" min="5" max="30"><span class="ig-pfx" style="margin-left:4px">yr</span></div>
+        </div>
+        <div class="ig-sm">
+          <div class="ig-lbl">月付频率</div>
+          <div class="ig-row"><input type="number" id="v-freq" value="12" step="1" min="12" max="26" readonly style="background:var(--s3)"></div>
+          <div class="ig-hint" style="margin-top:2px">月供×12/年</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-ttl">房屋持有成本（年度）</div>
+      <div class="ig-2col">
+        <div class="ig-sm">
+          <div class="ig-lbl">地税 / yr</div>
+          <div class="ig-row"><span class="ig-pfx">$</span><input type="number" id="v-ptax" value="6000" step="200" min="0"></div>
+        </div>
+        <div class="ig-sm">
+          <div class="ig-lbl">供暖费 / mo</div>
+          <div class="ig-row"><span class="ig-pfx">$</span><input type="number" id="v-heat" value="150" step="10" min="0"></div>
+        </div>
+      </div>
+      <div class="ig-2col">
+        <div class="ig-sm">
+          <div class="ig-lbl">Condo费 / mo</div>
+          <div class="ig-row"><span class="ig-pfx">$</span><input type="number" id="v-condo" value="0" step="50" min="0"></div>
+          <div class="ig-hint">Condo: 50%计入GDS</div>
+        </div>
+        <div class="ig-sm">
+          <div class="ig-lbl">HOA/其他 /mo</div>
+          <div class="ig-row"><span class="ig-pfx">$</span><input type="number" id="v-hoa" value="0" step="10" min="0"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-ttl">现有债务（月还款额）</div>
+      <div class="ig">
+        <div class="ig-lbl">现有贷款月供合计</div>
+        <div class="ig-row"><span class="ig-pfx">$</span>
+          <input type="number" id="v-existing-debt" value="0" step="100" min="0">
+        </div>
+        <div class="ig-hint">车贷/学贷/信用卡最低还款/其他贷款</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-ttl">HELOC 额度设置</div>
+
+      <div class="ig">
+        <div class="ig-lbl">HELOC 批核总额度</div>
+        <div class="ig-row"><span class="ig-pfx">$</span>
+          <input type="number" id="v-heloc-limit" value="0" step="5000" min="0">
+        </div>
+        <div class="ig-hint">填批核上限（非已用余额）· RBC按全额计TDS</div>
+      </div>
+
+      <div class="ig" id="field-heloc-rate">
+        <div class="ig-lbl">HELOC 实际利率（名义年利率）</div>
+        <div class="ig-row">
+          <input type="number" id="v-heloc-rate" value="4.95" step="0.05" min="0" max="20" style="width:70%">
+          <span class="ig-pfx">%</span>
+        </div>
+        <div class="ig-hint">RBC Homeline: Prime−0.5% ≈ 3.95%<br>其他机构: Prime+0.5% ≈ 4.95%<br>方式①②用此利率；方式③用压力测试利率</div>
+        <div class="ig-derived" id="d-heloc-eff-rate">②利率÷12: —</div>
+      </div>
+
+      <!-- 三种方式月供展示 -->
+      <div style="background:var(--s2);border-radius:6px;padding:9px 10px;margin-bottom:8px;">
+        <div class="ig-lbl" style="margin-bottom:7px">三种方式月供对比（当前额度）</div>
+        <div style="display:flex;flex-direction:column;gap:4px;" id="heloc-mini-compare">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;">
+            <span style="color:var(--bl)">① 3% 固定</span>
+            <span class="ig-derived" id="d-mo-fixed" style="margin:0;color:var(--bl)">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;">
+            <span style="color:var(--o);font-weight:600">② HELOC利率÷12 (RBC)</span>
+            <span class="ig-derived" id="d-mo-interest" style="margin:0">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;">
+            <span style="color:var(--rl)">③ 压力测试25yr摊还</span>
+            <span class="ig-derived" id="d-mo-amort" style="margin:0;color:var(--rl)">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ig-lbl" style="margin-bottom:5px">TDS计算采用方式</div>
+      <div class="mode-btns">
+        <div class="mode-btn" id="mode-btn-fixed" onclick="setHelocMode('fixed')">
+          <div class="mode-radio"></div>
+          <div>
+            <div class="mode-name">① 3% 固定<span class="mode-tag tag-loose">宽松口径</span></div>
+            <div class="mode-desc">全额 × 3% / 12，不受利率变动影响</div>
+          </div>
+        </div>
+        <div class="mode-btn on" id="mode-btn-interest" onclick="setHelocMode('interest')">
+          <div class="mode-radio"></div>
+          <div>
+            <div class="mode-name">② HELOC利率÷12<span class="mode-tag tag-rbc">RBC口径</span></div>
+            <div class="mode-desc">全额 × HELOC利率 / 12（利息only）</div>
+          </div>
+        </div>
+        <div class="mode-btn" id="mode-btn-amort" onclick="setHelocMode('amort')">
+          <div class="mode-radio"></div>
+          <div>
+            <div class="mode-name">③ 压力测试25yr摊还<span class="mode-tag tag-amort">最严口径</span></div>
+            <div class="mode-desc">全额按压力测试利率、25年、半年复利摊还</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 摊还年限字段已移除：③固定为25yr压力测试利率 -->
+
+      <div class="ig-derived" id="d-heloc-mo" style="margin-top:4px;margin-left:2px">TDS计入: —</div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-ttl">银行政策选项</div>
+      <div class="toggle-row">
+        <span class="toggle-lbl">净租金50%计入收入</span>
+        <div class="toggle on" id="tog-rental" onclick="toggleOpt('rental')"></div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-lbl">CMHC保险（首付&lt;20%）</span>
+        <div class="toggle" id="tog-cmhc" onclick="toggleOpt('cmhc')"></div>
+      </div>
+      <div class="ig">
+        <div class="ig-lbl">目标GDS上限</div>
+        <div class="ig-row">
+          <input type="number" id="v-gds-max" value="39" step="0.5" min="25" max="44">
+          <span class="ig-pfx">%</span>
+        </div>
+        <div class="ig-hint">标准银行GDS上限 39%（部分银行允许到44%）</div>
+      </div>
+      <div class="ig">
+        <div class="ig-lbl">目标TDS上限</div>
+        <div class="ig-row">
+          <input type="number" id="v-tds-max" value="44" step="0.5" min="30" max="50">
+          <span class="ig-pfx">%</span>
+        </div>
+        <div class="ig-hint">标准银行TDS上限 44%</div>
+      </div>
+    </div>
+
+  </div><!-- end side -->
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- Formula Box - top -->
+    <div class="section-title">公式说明</div>
+    <div class="formula-box" style="margin-bottom:14px">
+      <span class="hl">GDS</span> = (P+I月供 + 地税/12 + 供暖 + Condo×50%) / 月总收入 &nbsp;<span style="color:var(--ink3)">上限 39%</span><br>
+      <span class="hl">TDS</span> = (GDS分子 + 其他月债务 + HELOC月供) / 月总收入 &nbsp;<span style="color:var(--ink3)">上限 44%</span><br>
+      <span class="hl">HELOC月供</span> ① 全额×3%/12 &nbsp;② 全额×HELOC利率/12（利息only）&nbsp;③ 全额按压力测试利率25yr半年复利摊还<br>
+      <span class="hl">Mortgage月供(半年复利)</span> = P × r × (1+r)^n / ((1+r)^n−1) &nbsp;其中 r = (1+年利率/200)^(1/6)−1<br>
+      <span class="hl">压力利率</span> = max(合同利率 + 2%, 5.25%) &nbsp;·&nbsp; <span class="hl">净租金</span> = 租金 − 运营支出（银行计50%）<br>
+      <span class="r">⚠ CMHC</span>: &lt;5%不受理 · 5-9.99%→4% · 10-14.99%→3.1% · 15-19.99%→2.8% &nbsp;<span class="g">≥20%免保险</span><br>
+      <span class="g">✓ RBC口径</span>: HELOC按批核总额度计（非已用余额），自2013年起执行
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpis">
+      <div class="kc b">
+        <div class="kl">最大贷款额度</div>
+        <div class="kv" id="k-max-loan">—</div>
+        <div class="ks">压力测试利率下GDS/TDS取小值</div>
+      </div>
+      <div class="kc g">
+        <div class="kl">月供（P+I）</div>
+        <div class="kv" id="k-monthly">—</div>
+        <div class="ks" id="k-monthly-sub">实际利率月供</div>
+      </div>
+      <div class="kc o">
+        <div class="kl">GDS 比率</div>
+        <div class="kv" id="k-gds">—</div>
+        <div class="ks" id="k-gds-status">—</div>
+      </div>
+      <div class="kc o">
+        <div class="kl">TDS 比率</div>
+        <div class="kv" id="k-tds">—</div>
+        <div class="ks" id="k-tds-status">—</div>
+      </div>
+      <div class="kc p">
+        <div class="kl">压力测试利率</div>
+        <div class="kv" id="k-stress-rate">—</div>
+        <div class="ks">max(合同利率+2%, 5.25%)</div>
+      </div>
+      <div class="kc r">
+        <div class="kl">首付比例</div>
+        <div class="kv" id="k-down-pct">—</div>
+        <div class="ks" id="k-cmhc-note">—</div>
+      </div>
+    </div>
+
+    <!-- GDS/TDS Gauge -->
+    <div class="gauge-wrap">
+      <div class="section-title">GDS / TDS 比率仪表盘</div>
+      <div class="gauge-card">
+        <div class="gauge-head">
+          <span class="gauge-title">GDS — 住房支出比率 (Gross Debt Service)</span>
+          <span class="gauge-pct" id="gds-pct-label" style="color:var(--b)">—</span>
+        </div>
+        <div class="gauge-track">
+          <div class="gauge-fill" id="gds-bar" style="background:var(--bl);width:0%"></div>
+          <div class="gauge-limit" style="left:39%;background:#b83030;">
+            <span class="gauge-limit-lbl" style="color:#b83030">39%</span>
+          </div>
+        </div>
+        <div class="gauge-legend">
+          <span class="gauge-leg-item"><span class="gauge-dot" style="background:var(--bl)"></span>GDS实际值</span>
+          <span class="gauge-leg-item"><span class="gauge-dot" style="background:#b83030"></span>上限39%</span>
+        </div>
+      </div>
+      <div class="gauge-card">
+        <div class="gauge-head">
+          <span class="gauge-title">TDS — 总债务比率 (Total Debt Service)</span>
+          <span class="gauge-pct" id="tds-pct-label" style="color:var(--b)">—</span>
+        </div>
+        <div class="gauge-track">
+          <div class="gauge-fill" id="tds-bar" style="background:var(--pl);width:0%"></div>
+          <div class="gauge-limit" style="left:44%;background:#b83030;">
+            <span class="gauge-limit-lbl" style="color:#b83030">44%</span>
+          </div>
+        </div>
+        <div class="gauge-legend">
+          <span class="gauge-leg-item"><span class="gauge-dot" style="background:var(--pl)"></span>TDS实际值</span>
+          <span class="gauge-leg-item"><span class="gauge-dot" style="background:#b83030"></span>上限44%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- GDS/TDS Breakdown -->
+      <div>
+        <div class="section-title">GDS 计算明细（月度）</div>
+        <div class="breakdown-card">
+          <div class="breakdown-head">
+            <span class="breakdown-head-title">GDS = 住房支出 ÷ 总收入</span>
+            <span id="gds-badge" style="font-family:'JetBrains Mono',monospace;font-size:8px;padding:2px 7px;border-radius:3px;background:var(--bb);color:var(--b)">—</span>
+          </div>
+          <div class="brow header"><span class="blbl">项目</span><span class="bval">月度金额</span></div>
+          <div class="brow"><span class="blbl">月供 (P+I) — 实际利率</span><span class="bval b" id="b-pi">—</span></div>
+          <div class="brow"><span class="blbl">地税 / 12</span><span class="bval" id="b-ptax">—</span></div>
+          <div class="brow"><span class="blbl">供暖费</span><span class="bval" id="b-heat">—</span></div>
+          <div class="brow"><span class="blbl">Condo费 × 50%</span><span class="bval" id="b-condo">—</span></div>
+          <div class="brow total"><span class="blbl">GDS分子（月度住房支出）</span><span class="bval b" id="b-gds-num">—</span></div>
+          <div class="brow"><span class="blbl">月度总收入（年÷12）</span><span class="bval g" id="b-income-mo">—</span></div>
+          <div class="brow total" id="gds-result-row"><span class="blbl">GDS 比率</span><span class="bval" id="b-gds-ratio">—</span></div>
+        </div>
+
+        <div class="section-title" style="margin-top:14px">TDS 计算明细（月度）</div>
+        <div class="breakdown-card">
+          <div class="breakdown-head">
+            <span class="breakdown-head-title">TDS = (住房 + 所有债务) ÷ 总收入</span>
+            <span id="tds-badge" style="font-family:'JetBrains Mono',monospace;font-size:8px;padding:2px 7px;border-radius:3px;background:var(--bb);color:var(--b)">—</span>
+          </div>
+          <div class="brow header"><span class="blbl">项目</span><span class="bval">月度金额</span></div>
+          <div class="brow"><span class="blbl">GDS分子（住房支出）</span><span class="bval b" id="b-gds-num2">—</span></div>
+          <div class="brow"><span class="blbl">现有贷款月供</span><span class="bval" id="b-existing">—</span></div>
+          <div class="brow" style="background:var(--ob)">
+            <span class="blbl" style="color:var(--o)">HELOC利息（批核全额 × Prime/12）<br>
+              <span style="font-size:9px;font-family:'JetBrains Mono',monospace" id="b-heloc-formula">—</span>
+            </span>
+            <span class="bval o" id="b-heloc">—</span>
+          </div>
+          <div class="brow total"><span class="blbl">TDS分子（月度总债务）</span><span class="bval b" id="b-tds-num">—</span></div>
+          <div class="brow"><span class="blbl">月度总收入（含租金调整）</span><span class="bval g" id="b-income-mo2">—</span></div>
+          <div class="brow total" id="tds-result-row"><span class="blbl">TDS 比率</span><span class="bval" id="b-tds-ratio">—</span></div>
+        </div>
+
+        <!-- HELOC Method Comparison -->
+        <div class="section-title" style="margin-top:14px">HELOC 三种计算方式对比</div>
+        <div class="breakdown-card">
+          <div class="breakdown-head">
+            <span class="breakdown-head-title">HELOC额度对TDS的月度影响</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--ink3)" id="heloc-limit-lbl">—</span>
+          </div>
+          <div class="brow header"><span class="blbl">方法</span><span class="bval">月供</span></div>
+          <div class="brow" id="cmp-row-fixed">
+            <span class="blbl">① 3% 固定（宽松口径）<br>
+              <span style="font-size:9px;color:var(--ink3)">全额 × 3% / 12，固定不变</span>
+            </span>
+            <span class="bval b" id="cmp-3pct">—</span>
+          </div>
+          <div class="brow" id="cmp-row-interest">
+            <span class="blbl" style="color:var(--o)">② HELOC利率÷12（RBC口径）<br>
+              <span style="font-size:9px;color:var(--ink3)" id="cmp-interest-formula">全额 × HELOC利率 / 12（利息only）</span>
+            </span>
+            <span class="bval o" id="cmp-rbc">—</span>
+          </div>
+          <div class="brow" id="cmp-row-amort">
+            <span class="blbl">③ 压力测试25yr摊还（最严口径）<br>
+              <span style="font-size:9px;color:var(--ink3)" id="cmp-amort-formula">全额按压力测试利率、25yr半年复利</span>
+            </span>
+            <span class="bval r" id="cmp-amort">—</span>
+          </div>
+          <div class="brow total">
+            <span class="blbl">① vs ② 月度差额</span>
+            <span class="bval" id="cmp-diff">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stress Test + Max Loan -->
+      <div>
+        <div class="section-title">OSFI压力测试 — 合格利率</div>
+        <div class="info-box">
+          <strong>📋 压力测试规则：</strong>银行必须按 <strong>max(合同利率 + 2%, 5.25%)</strong> 的较高值测试还款能力。以下显示在不同场景下的最大贷款额度。
+        </div>
+        <div class="stress-grid" id="stress-grid"></div>
+
+        <div class="section-title" style="margin-top:14px">收入驱动的最大贷款额度分析</div>
+
+        <!-- GDS constraint -->
+        <div class="breakdown-card" style="margin-bottom:8px">
+          <div class="breakdown-head">
+            <span class="breakdown-head-title">GDS约束反推（≤ <span id="b-gds-lim">39</span>%）</span>
+            <span id="b-stress-rate-badge" style="font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 8px;border-radius:3px;background:var(--pb);color:var(--pl)">—</span>
+          </div>
+          <div class="brow header"><span class="blbl">步骤</span><span class="bval">金额</span></div>
+          <div class="brow">
+            <span class="blbl">① 月收入 × <span id="gv-gds-pct">39</span>%<br><span style="font-size:9px;color:var(--ink3)">GDS上限对应的月度总住房支出天花板</span></span>
+            <span class="bval b" id="gv-gds-ceiling">—</span>
+          </div>
+          <div class="brow">
+            <span class="blbl">② − 地税/12<br><span style="font-size:9px;color:var(--ink3)" id="gv-ptax-hint">—</span></span>
+            <span class="bval" id="gv-ptax-mo">—</span>
+          </div>
+          <div class="brow">
+            <span class="blbl">③ − 供暖费<br><span style="font-size:9px;color:var(--ink3)">每月供暖支出</span></span>
+            <span class="bval" id="gv-heat">—</span>
+          </div>
+          <div class="brow">
+            <span class="blbl">④ − Condo费 × 50%<br><span style="font-size:9px;color:var(--ink3)">Condo费只计50%</span></span>
+            <span class="bval" id="gv-condo">—</span>
+          </div>
+          <div class="brow total">
+            <span class="blbl">⑤ = 最大允许压测月供 (P+I)<br><span style="font-size:9px;color:var(--o)">① − ② − ③ − ④</span></span>
+            <span class="bval o" id="gv-max-pi-gds">—</span>
+          </div>
+          <div class="brow">
+            <span class="blbl">⑥ 用压测利率反推最大贷款本金<br><span style="font-size:9px;color:var(--ink3)">maxLoan(⑤, 压测利率, 摊销年限)</span></span>
+            <span class="bval b" id="b-max-gds">—</span>
+          </div>
+          <div class="brow" id="gds-verify-row">
+            <span class="blbl">✓ 验证：压测月供 + 固定支出<br><span style="font-size:9px;color:var(--ink3)">应 = 月收入 × GDS%（允许±$1误差）</span></span>
+            <span class="bval" id="gv-gds-verify">—</span>
+          </div>
+        </div>
+
+        <!-- TDS constraint -->
+        <div class="breakdown-card" style="margin-bottom:8px">
+          <div class="breakdown-head">
+            <span class="breakdown-head-title">TDS约束反推（≤ <span id="b-tds-lim">44</span>%）</span>
+          </div>
+          <div class="brow header"><span class="blbl">步骤</span><span class="bval">金额</span></div>
+          <div class="brow">
+            <span class="blbl">① 月收入 × <span id="gv-tds-pct">44</span>%<br><span style="font-size:9px;color:var(--ink3)">TDS上限对应的月度总债务天花板</span></span>
+            <span class="bval b" id="gv-tds-ceiling">—</span>
+          </div>
+          <div class="brow">
+            <span class="blbl">② − 地税/12 − 供暖 − Condo×50%<br><span style="font-size:9px;color:var(--ink3)">同GDS固定住房支出</span></span>
+            <span class="bval" id="gv-fixed-housing">—</span>
+          </div>
+          <div class="brow">
+            <span class="blbl">③ − 现有贷款月供<br><span style="font-size:9px;color:var(--ink3)">车贷/学贷等</span></span>
+            <span class="bval" id="gv-existing">—</span>
+          </div>
+          <div class="brow">
+            <span class="blbl">④ − HELOC月供<br><span style="font-size:9px;color:var(--ink3)" id="gv-heloc-hint">当前选择方式</span></span>
+            <span class="bval" id="gv-heloc">—</span>
+          </div>
+          <div class="brow total">
+            <span class="blbl">⑤ = 最大允许压测月供 (P+I)<br><span style="font-size:9px;color:var(--o)">① − ② − ③ − ④</span></span>
+            <span class="bval o" id="gv-max-pi-tds">—</span>
+          </div>
+          <div class="brow">
+            <span class="blbl">⑥ 用压测利率反推最大贷款本金<br><span style="font-size:9px;color:var(--ink3)">maxLoan(⑤, 压测利率, 摊销年限)</span></span>
+            <span class="bval b" id="b-max-tds">—</span>
+          </div>
+          <div class="brow" id="tds-verify-row">
+            <span class="blbl">✓ 验证：压测月供 + 所有固定支出<br><span style="font-size:9px;color:var(--ink3)">应 = 月收入 × TDS%（允许±$1误差）</span></span>
+            <span class="bval" id="gv-tds-verify">—</span>
+          </div>
+        </div>
+
+        <!-- Result summary -->
+        <div class="breakdown-card">
+          <div class="breakdown-head">
+            <span class="breakdown-head-title">最终结果</span>
+          </div>
+          <div class="brow"><span class="blbl">GDS约束最大贷款</span><span class="bval b" id="b-max-gds-echo">—</span></div>
+          <div class="brow"><span class="blbl">TDS约束最大贷款</span><span class="bval b" id="b-max-tds-echo">—</span></div>
+          <div class="brow total"><span class="blbl">实际可贷额度（取小值）</span><span class="bval g" id="b-max-loan">—</span></div>
+          <div class="brow"><span class="blbl">实际月供（合同利率 <span id="b-contract-rate">—</span>）</span><span class="bval" id="b-actual-pi">—</span></div>
+          <div class="brow"><span class="blbl">＋ 首付</span><span class="bval" id="b-down-show">—</span></div>
+          <div class="brow total"><span class="blbl">最大可购房价</span><span class="bval g" id="b-max-price">—</span></div>
+        </div>
+
+        <div class="section-title" style="margin-top:14px">CMHC保险费用</div>
+        <div class="breakdown-card" id="cmhc-card">
+          <div class="breakdown-head">
+            <span class="breakdown-head-title">CMHC保险计算</span>
+            <span id="cmhc-status-badge" style="font-family:'JetBrains Mono',monospace;font-size:8px;padding:2px 7px;border-radius:3px;">—</span>
+          </div>
+          <div class="brow"><span class="blbl">首付比例</span><span class="bval" id="c-down-pct">—</span></div>
+          <div class="brow"><span class="blbl">保险费率</span><span class="bval" id="c-rate">—</span></div>
+          <div class="brow"><span class="blbl">保险费金额</span><span class="bval r" id="c-premium">—</span></div>
+          <div class="brow total"><span class="blbl">含保险贷款本金</span><span class="bval b" id="c-total-loan">—</span></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Sensitivity Table -->
+    <div class="section-title">利率敏感性分析 — 月供变化</div>
+    <div class="breakdown-card">
+      <div class="breakdown-head">
+        <span class="breakdown-head-title">贷款额度 × 利率 → 月供（25年摊还）</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--ink3)">当前贷款额高亮</span>
+      </div>
+      <div id="sensitivity-table" style="overflow-x:auto;"></div>
+    </div>
+
+  </div><!-- end content -->
+</div><!-- end layout -->
+
+<script>
+const $ = id => document.getElementById(id);
+const gv = id => parseFloat($(id).value) || 0;
+const fmt = (n, dec=0) => '$' + Math.round(n).toLocaleString('en-CA');
+const fmtK = n => n >= 1000000 ? '$' + (n/1000000).toFixed(2) + 'M' : '$' + Math.round(n/1000).toFixed(0) + 'K';
+const fmtP = n => (n*100).toFixed(2) + '%';
+
+let opts = { rental: true, cmhc: false };
+
+function toggleOpt(key) {
+  opts[key] = !opts[key];
+  const el = $('tog-' + key);
+  el.classList.toggle('on', opts[key]);
+  calculate();
+}
+
+// Monthly payment: Canadian mortgage (semi-annual compounding)
+function monthlyPayment(principal, annualRate, years) {
+  if (annualRate === 0) return principal / (years * 12);
+  const r = Math.pow(1 + annualRate / 200, 1/6) - 1; // effective monthly rate
+  const n = years * 12;
+  return principal * r * Math.pow(1+r, n) / (Math.pow(1+r, n) - 1);
+}
+
+// Max loan given monthly payment budget
+function maxLoan(maxPayment, annualRate, years) {
+  if (annualRate === 0) return maxPayment * years * 12;
+  const r = Math.pow(1 + annualRate / 200, 1/6) - 1;
+  const n = years * 12;
+  return maxPayment * (Math.pow(1+r, n) - 1) / (r * Math.pow(1+r, n));
+}
+
+function calculate() {
+  const emp = gv('v-employment');
+  const rentalNet = gv('v-rental-net');
+  const otherInc = gv('v-other-income');
+  const price = gv('v-price');
+  const down = gv('v-down');
+  const rate = gv('v-rate');
+  const amort = gv('v-amort') || 25;
+  const ptax = gv('v-ptax');
+  const heat = gv('v-heat');
+  const condo = gv('v-condo');
+  const hoa = gv('v-hoa');
+  const existingDebt = gv('v-existing-debt');
+  const helocLimit   = gv('v-heloc-limit');
+  const helocRate    = gv('v-heloc-rate') || 4.95;
+  const gdsMax = gv('v-gds-max') / 100 || 0.39;
+  const tdsMax = gv('v-tds-max') / 100 || 0.44;
+
+  // 压力测试利率（提前定义，HELOC③需要用）
+  const stressRate = Math.max(rate + 2, 5.25);
+
+  // ── HELOC三种计算方式 ──
+  // ① 3%固定：全额 × 3% / 12（宽松口径，不受利率变动）
+  const helocMo_fixed    = helocLimit * 0.03 / 12;
+
+  // ② HELOC利率÷12：全额 × 年利率 / 12（利息only，RBC口径）
+  const helocMo_interest = helocLimit * helocRate / 100 / 12;
+
+  // ③ 压力测试利率25年摊还：用stressRate、半年复利、25年（mortgage公式）
+  const helocMo_amort = helocLimit > 0 ? monthlyPayment(helocLimit, stressRate, 25) : 0;
+
+  // Active method
+  const helocMo = helocMode === 'fixed'     ? helocMo_fixed
+                : helocMode === 'interest'  ? helocMo_interest
+                :                            helocMo_amort;
+
+  const helocModeLabel = helocMode === 'fixed'
+    ? `全额 × 3% / 12（固定）`
+    : helocMode === 'interest'
+    ? `全额 × ${helocRate}% / 12（利息only）`
+    : `全额按压力测试${stressRate.toFixed(2)}%、25yr半年复利摊还`;
+
+  const helocAnnualEff = helocRate; // 名义年利率，用于显示
+
+  // CMHC
+  const loanAmount = Math.max(0, price - down);
+  const downPct = price > 0 ? down / price : 0;
+  let cmhcRate = 0;
+  if (downPct < 0.05) cmhcRate = 0;
+  else if (downPct < 0.10) cmhcRate = 0.04;
+  else if (downPct < 0.15) cmhcRate = 0.031;
+  else if (downPct < 0.20) cmhcRate = 0.028;
+  const cmhcPremium = loanAmount * cmhcRate;
+  const totalLoanWithCMHC = loanAmount + cmhcPremium;
+  const effectiveLoan = opts.cmhc ? totalLoanWithCMHC : loanAmount;
+
+  // Monthly payment (mortgage: semi-annual compounding)
+  const pi = monthlyPayment(effectiveLoan, rate, amort);
+
+  // Rental income treatment
+  const rentalAdj = opts.rental ? rentalNet * 0.5 : rentalNet;
+  const totalAnnualIncome = emp + rentalAdj + otherInc;
+  const totalMonthlyIncome = totalAnnualIncome / 12;
+
+  // GDS components (monthly)
+  const ptaxMo = ptax / 12;
+  const condoAdj = condo * 0.5;
+  const gdsNumerator = pi + ptaxMo + heat + condoAdj;
+
+  // TDS components
+  const tdsNumerator = gdsNumerator + existingDebt + helocMo;
+
+  // Ratios
+  const gdsRatio = totalMonthlyIncome > 0 ? gdsNumerator / totalMonthlyIncome : 0;
+  const tdsRatio = totalMonthlyIncome > 0 ? tdsNumerator / totalMonthlyIncome : 0;
+
+  // Max loan calculations — 按压力测试利率反推（OSFI B-20要求）
+  const fixedHousing = ptaxMo + heat + condoAdj;
+  const maxGDSPayment = totalMonthlyIncome * gdsMax - fixedHousing;
+  const maxLoanGDS = maxGDSPayment > 0 ? maxLoan(maxGDSPayment, stressRate, amort) : 0;
+
+  // Max loan (TDS constraint)
+  const maxTDSPayment = totalMonthlyIncome * tdsMax - fixedHousing - existingDebt - helocMo;
+  const maxLoanTDS = maxTDSPayment > 0 ? maxLoan(maxTDSPayment, stressRate, amort) : 0;
+
+  const maxLoanActual = Math.max(0, Math.min(maxLoanGDS, maxLoanTDS));
+  const maxBuyPrice = maxLoanActual + down;
+
+  // ── Update KPIs ──
+  $('k-max-loan').textContent = fmtK(maxLoanActual);
+  $('k-monthly').textContent = fmt(pi);
+  $('k-monthly-sub').textContent = `贷款额 ${fmtK(loanAmount)} · ${rate}% · ${amort}yr`;
+  $('k-stress-rate').textContent = stressRate.toFixed(2) + '%';
+  $('k-down-pct').textContent = (downPct * 100).toFixed(1) + '%';
+
+  const downNote = downPct < 0.05 ? '❌ 低于最低5%' : downPct < 0.20 ? '需CMHC保险' : '✓ 无需CMHC';
+  $('k-cmhc-note').textContent = downNote;
+
+  // GDS card color
+  const gdsOk = gdsRatio <= gdsMax;
+  const gdsCard = $('k-gds').parentElement;
+  gdsCard.className = 'kc ' + (gdsOk ? 'g' : 'r');
+  $('k-gds').textContent = (gdsRatio * 100).toFixed(2) + '%';
+  $('k-gds-status').textContent = gdsOk ? '✓ 通过 GDS限额' : '✗ 超出GDS限额';
+
+  const tdsOk = tdsRatio <= tdsMax;
+  const tdsCard = $('k-tds').parentElement;
+  tdsCard.className = 'kc ' + (tdsOk ? 'g' : 'r');
+  $('k-tds').textContent = (tdsRatio * 100).toFixed(2) + '%';
+  $('k-tds-status').textContent = tdsOk ? '✓ 通过 TDS限额' : '✗ 超出TDS限额';
+
+  // ── 4. Fix gauge bar bug ──
+  // 仪表盘满格对应上限值本身，不是55%固定值
+  // GDS: 上限39%，满格显示60%（留余量显示超出情况）
+  // 宽度 = min(实际值/60%, 100%)，上限标记线固定在 39/60 = 65% 处
+  const gdsScale = 0.60; // 60% = 100% of bar
+  const tdsScale = 0.65; // 65% = 100% of bar
+
+  const gdsBarW = Math.min(gdsRatio / gdsScale * 100, 100);
+  $('gds-bar').style.width = gdsBarW + '%';
+  $('gds-bar').style.background = gdsOk ? 'var(--bl)' : 'var(--rl)';
+  $('gds-pct-label').textContent = (gdsRatio * 100).toFixed(2) + '%';
+  $('gds-pct-label').style.color = gdsOk ? 'var(--bl)' : 'var(--rl)';
+
+  // 上限线位置：39% / 60% = 65%
+  const gdsLimitLinePos = (gdsMax / gdsScale * 100).toFixed(1);
+  const gdsLimitEl = document.querySelector('#gds-bar').parentElement.querySelector('.gauge-limit');
+  if (gdsLimitEl) gdsLimitEl.style.left = gdsLimitLinePos + '%';
+
+  const tdsBarW = Math.min(tdsRatio / tdsScale * 100, 100);
+  $('tds-bar').style.width = tdsBarW + '%';
+  $('tds-bar').style.background = tdsOk ? 'var(--pl)' : 'var(--rl)';
+  $('tds-pct-label').textContent = (tdsRatio * 100).toFixed(2) + '%';
+  $('tds-pct-label').style.color = tdsOk ? 'var(--pl)' : 'var(--rl)';
+
+  // 上限线位置：44% / 65% = 67.7%
+  const tdsLimitLinePos = (tdsMax / tdsScale * 100).toFixed(1);
+  const tdsLimitEl = document.querySelector('#tds-bar').parentElement.querySelector('.gauge-limit');
+  if (tdsLimitEl) tdsLimitEl.style.left = tdsLimitLinePos + '%';
+
+  // GDS breakdown
+  $('b-pi').textContent = fmt(pi);
+  $('b-ptax').textContent = fmt(ptaxMo);
+  $('b-heat').textContent = fmt(heat);
+  $('b-condo').textContent = condo > 0 ? fmt(condoAdj) + ' (of ' + fmt(condo) + ')' : '$0';
+  $('b-gds-num').textContent = fmt(gdsNumerator);
+  $('b-income-mo').textContent = fmt(totalMonthlyIncome);
+  $('b-gds-ratio').textContent = (gdsRatio * 100).toFixed(2) + '%';
+  $('b-gds-ratio').className = 'bval ' + (gdsOk ? 'g' : 'r');
+  $('gds-result-row').className = 'brow total ' + (gdsOk ? 'ok' : 'fail');
+
+  const gdsBadge = $('gds-badge');
+  gdsBadge.textContent = gdsOk ? 'PASS' : 'FAIL';
+  gdsBadge.style.background = gdsOk ? 'var(--gb)' : 'var(--rb)';
+  gdsBadge.style.color = gdsOk ? 'var(--g)' : 'var(--r)';
+
+  // TDS breakdown
+  $('b-gds-num2').textContent = fmt(gdsNumerator);
+  $('b-existing').textContent = fmt(existingDebt);
+  $('b-heloc').textContent = fmt(helocMo);
+  $('b-heloc-formula').textContent = helocLimit > 0 ? helocModeLabel : '额度为0，无影响';
+  $('b-tds-num').textContent = fmt(tdsNumerator);
+  $('b-income-mo2').textContent = fmt(totalMonthlyIncome);
+  $('b-tds-ratio').textContent = (tdsRatio * 100).toFixed(2) + '%';
+  $('b-tds-ratio').className = 'bval ' + (tdsOk ? 'g' : 'r');
+  $('tds-result-row').className = 'brow total ' + (tdsOk ? 'ok' : 'fail');
+
+  const tdsBadge = $('tds-badge');
+  tdsBadge.textContent = tdsOk ? 'PASS' : 'FAIL';
+  tdsBadge.style.background = tdsOk ? 'var(--gb)' : 'var(--rb)';
+  tdsBadge.style.color = tdsOk ? 'var(--g)' : 'var(--r)';
+
+  // ── Sidebar HELOC derived fields ──
+  $('d-heloc-eff-rate').textContent = `②利率÷12: ${helocRate}% / 12 = ${(helocRate/12).toFixed(4)}%/月`;
+  $('d-mo-fixed').textContent    = helocLimit > 0 ? fmt(helocMo_fixed)    + '/月' : '—';
+  $('d-mo-interest').textContent = helocLimit > 0 ? fmt(helocMo_interest) + '/月' : '—';
+  $('d-mo-amort').textContent    = helocLimit > 0 ? fmt(helocMo_amort)    + '/月' : '—';
+  $('d-heloc-mo').textContent = helocLimit > 0
+    ? `TDS计入: ${fmt(helocMo)}/月 · 方式${helocMode === 'fixed' ? '①' : helocMode === 'interest' ? '②' : '③'}`
+    : 'TDS计入: $0';
+
+  // ── HELOC comparison table ──
+  $('heloc-limit-lbl').textContent = helocLimit > 0 ? `批核额度 $${Math.round(helocLimit).toLocaleString()}` : '额度未填';
+  $('cmp-interest-formula').textContent = `全额 × ${helocRate}% / 12（利息only）`;
+  $('cmp-amort-formula').textContent = `全额按压力测试${stressRate.toFixed(2)}%、25yr半年复利`;
+  $('cmp-3pct').textContent  = fmt(helocMo_fixed);
+  $('cmp-rbc').textContent   = fmt(helocMo_interest);
+  $('cmp-amort').textContent = fmt(helocMo_amort);
+
+  // Highlight active row in comparison table
+  const rowMap = { fixed: 'cmp-row-fixed', interest: 'cmp-row-interest', amort: 'cmp-row-amort' };
+  ['fixed','interest','amort'].forEach(m => {
+    const row = $(rowMap[m]);
+    if (row) {
+      row.style.background = m === helocMode ? 'var(--ob)' : '';
+      row.style.fontWeight = m === helocMode ? '700' : '400';
+    }
+  });
+  const diff = helocMo_fixed - helocMo_interest;
+  $('cmp-diff').textContent = (diff >= 0 ? '+' : '') + '$' + Math.abs(Math.round(diff)).toLocaleString();
+  $('cmp-diff').className = 'bval ' + (diff > 0 ? 'g' : 'r');
+
+  // Derived labels
+  $('d-rental-offset').textContent = opts.rental
+    ? `银行计入: $${Math.round(rentalAdj).toLocaleString()} (50%净租金)`
+    : `银行计入: $${Math.round(rentalNet).toLocaleString()} (全额)`;
+  $('d-down-pct').textContent = `首付比例: ${(downPct*100).toFixed(1)}%`;
+  $('d-loan-amount').textContent = fmt(loanAmount);
+  $('d-stress-rate').textContent = `压力测试利率: ${stressRate.toFixed(2)}`+ '%';
+
+  // ── Max loan step-by-step verification display ──
+  const gdsCeiling   = totalMonthlyIncome * gdsMax;          // 月收入 × 39%
+  const tdsCeiling   = totalMonthlyIncome * tdsMax;          // 月收入 × 44%
+
+  // GDS steps
+  const maxPiGDS = maxGDSPayment;   // = gdsCeiling - fixedHousing
+  const piAtMaxGDS = maxLoanGDS > 0 ? monthlyPayment(maxLoanGDS, stressRate, amort) : 0;
+  const gdsVerifySum = piAtMaxGDS + fixedHousing;            // 应 ≈ gdsCeiling
+
+  // TDS steps
+  const maxPiTDS = maxTDSPayment;   // = tdsCeiling - fixedHousing - existingDebt - helocMo
+  const piAtMaxTDS = maxLoanTDS > 0 ? monthlyPayment(maxLoanTDS, stressRate, amort) : 0;
+  const tdsVerifySum = piAtMaxTDS + fixedHousing + existingDebt + helocMo; // 应 ≈ tdsCeiling
+
+  // GDS card
+  $('b-gds-lim').textContent  = (gdsMax*100).toFixed(0);
+  $('gv-gds-pct').textContent = (gdsMax*100).toFixed(0);
+  $('gv-gds-ceiling').textContent = fmt(gdsCeiling);
+  $('gv-ptax-mo').textContent = `− ${fmt(ptaxMo)}`;
+  $('gv-ptax-hint').textContent = `年地税 ${fmt(ptax)} ÷ 12`;
+  $('gv-heat').textContent    = `− ${fmt(heat)}`;
+  $('gv-condo').textContent   = condoAdj > 0 ? `− ${fmt(condoAdj)} (of ${fmt(condo)})` : '− $0';
+  $('gv-max-pi-gds').textContent = fmt(maxPiGDS);
+  $('b-max-gds').textContent  = fmtK(maxLoanGDS);
+  $('b-max-gds-echo').textContent = fmtK(maxLoanGDS);
+  const gdsVerifyOk = Math.abs(gdsVerifySum - gdsCeiling) <= 2;
+  $('gv-gds-verify').textContent = `${fmt(gdsVerifySum)} ${gdsVerifyOk ? '✓' : '≠'} ${fmt(gdsCeiling)}`;
+  $('gv-gds-verify').className = 'bval ' + (gdsVerifyOk ? 'g' : 'r');
+  $('gds-verify-row').style.background = gdsVerifyOk ? 'var(--gb)' : 'var(--rb)';
+
+  // TDS card
+  $('b-tds-lim').textContent  = (tdsMax*100).toFixed(0);
+  $('gv-tds-pct').textContent = (tdsMax*100).toFixed(0);
+  $('gv-tds-ceiling').textContent = fmt(tdsCeiling);
+  $('gv-fixed-housing').textContent = `− ${fmt(fixedHousing)}`;
+  $('gv-existing').textContent = `− ${fmt(existingDebt)}`;
+  $('gv-heloc').textContent   = helocMo > 0 ? `− ${fmt(helocMo)}` : '− $0';
+  $('gv-heloc-hint').textContent = helocModeLabel;
+  $('gv-max-pi-tds').textContent = fmt(maxPiTDS);
+  $('b-max-tds').textContent  = fmtK(maxLoanTDS);
+  $('b-max-tds-echo').textContent = fmtK(maxLoanTDS);
+  const tdsVerifyOk = Math.abs(tdsVerifySum - tdsCeiling) <= 2;
+  $('gv-tds-verify').textContent = `${fmt(tdsVerifySum)} ${tdsVerifyOk ? '✓' : '≠'} ${fmt(tdsCeiling)}`;
+  $('gv-tds-verify').className = 'bval ' + (tdsVerifyOk ? 'g' : 'r');
+  $('tds-verify-row').style.background = tdsVerifyOk ? 'var(--gb)' : 'var(--rb)';
+
+  // Result summary
+  $('b-stress-rate-badge').textContent = `压力测试 ${stressRate.toFixed(2)}%`;
+  $('b-max-loan').textContent  = fmtK(maxLoanActual);
+  $('b-contract-rate').textContent = `${rate}%`;
+  $('b-actual-pi').textContent = fmt(monthlyPayment(maxLoanActual, rate, amort)) + '/月';
+  $('b-down-show').textContent = fmt(down);
+  $('b-max-price').textContent = fmtK(maxBuyPrice);
+
+  // CMHC
+  const cmhcBadge = $('cmhc-status-badge');
+  if (downPct < 0.05) {
+    cmhcBadge.textContent = '❌ 首付不足5%';
+    cmhcBadge.style.background = 'var(--rb)'; cmhcBadge.style.color = 'var(--r)';
+  } else if (downPct < 0.20) {
+    cmhcBadge.textContent = '⚠ 需要CMHC';
+    cmhcBadge.style.background = 'var(--ob)'; cmhcBadge.style.color = 'var(--o)';
+  } else {
+    cmhcBadge.textContent = '✓ 无需保险';
+    cmhcBadge.style.background = 'var(--gb)'; cmhcBadge.style.color = 'var(--g)';
+  }
+  $('c-down-pct').textContent = (downPct * 100).toFixed(2) + '%';
+  $('c-rate').textContent = cmhcRate > 0 ? (cmhcRate * 100).toFixed(1) + '%' : '0% (不适用)';
+  $('c-premium').textContent = cmhcRate > 0 ? fmt(cmhcPremium) : '$0';
+  $('c-total-loan').textContent = cmhcRate > 0 ? fmt(totalLoanWithCMHC) : fmt(loanAmount);
+
+  // Stress test scenarios
+  const stressScenarios = [
+    { label: '当前合同利率', r: rate },
+    { label: '压力测试利率', r: stressRate },
+    { label: '+3% 情景', r: rate + 3 },
+    { label: '+4% 情景', r: rate + 4 },
+  ];
+  const stressGrid = $('stress-grid');
+  stressGrid.innerHTML = stressScenarios.map(s => {
+    const maxP = totalMonthlyIncome * gdsMax - fixedHousing;
+    const ml = maxP > 0 ? maxLoan(maxP, s.r, amort) : 0;
+    const pass = ml >= effectiveLoan;
+    return `<div class="stress-card">
+      <div class="stress-title">${s.label}</div>
+      <div class="stress-rate">${s.r.toFixed(2)}%</div>
+      <div class="stress-max">最大贷款: ${fmtK(ml)}</div>
+      <div class="stress-badge ${pass ? 'pass' : 'fail'}">${pass ? '✓ 可通过' : '✗ 不足'}</div>
+    </div>`;
+  }).join('');
+
+  // Sensitivity table
+  const rates = [3.0, 3.5, 4.0, 4.5, 5.0, 5.25, 5.5, 6.0, 6.5, 7.0];
+  const loans = [300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000];
+  let html = `<table style="border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:10px;min-width:600px;width:100%">`;
+  html += `<tr style="background:var(--s2)"><th style="padding:6px 10px;text-align:left;border:1px solid var(--bdr)">利率 \\ 贷款</th>`;
+  loans.forEach(l => {
+    const isCurrentLoan = Math.abs(l - loanAmount) < 60000;
+    html += `<th style="padding:6px 10px;border:1px solid var(--bdr);${isCurrentLoan?'background:var(--bb);color:var(--b)':''}">${fmtK(l)}</th>`;
+  });
+  html += '</tr>';
+  rates.forEach(r => {
+    const isCurrentRate = Math.abs(r - rate) < 0.3;
+    html += `<tr${isCurrentRate?' style="background:var(--ob)"':''}>`;
+    html += `<td style="padding:5px 10px;border:1px solid var(--bdr);font-weight:600;color:${isCurrentRate?'var(--o)':'var(--ink2)'}">${r.toFixed(2)}%</td>`;
+    loans.forEach(l => {
+      const mo = monthlyPayment(l, r, amort);
+      const isCurrentLoan = Math.abs(l - loanAmount) < 60000;
+      const highlight = isCurrentRate && isCurrentLoan;
+      html += `<td style="padding:5px 10px;border:1px solid var(--bdr);text-align:right;${highlight?'background:var(--gb);font-weight:700;color:var(--g)':isCurrentRate?'color:var(--o)':isCurrentLoan?'color:var(--b)':''}">${fmt(mo)}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</table>';
+  $('sensitivity-table').innerHTML = html;
+}
+
+// Events
+['v-employment','v-rental-net','v-other-income','v-price','v-down',
+ 'v-rate','v-amort','v-ptax','v-heat','v-condo','v-hoa',
+ 'v-existing-debt','v-heloc-limit',
+ 'v-heloc-rate','v-gds-max','v-tds-max'].forEach(id => {
+  $(id).addEventListener('input', calculate);
+});
+
+// HELOC mode selector
+let helocMode = 'interest'; // 'interest' | 'fixed' | 'amort'
+
+function setHelocMode(mode) {
+  helocMode = mode;
+  ['interest','fixed','amort'].forEach(m => {
+    $('mode-btn-' + m).classList.toggle('on', m === mode);
+  });
+  calculate();
+}
+
+// Init
+calculate();
+</script>
+</body>
+</html>
