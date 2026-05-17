@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>看房记录 V1.1</title>
+<title>看房记录 V1.2</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
@@ -75,14 +75,23 @@ tbody tr:hover{background:var(--surface2)}
 tbody tr:hover .row-actions{opacity:1}
 tbody td{padding:10px 14px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .go-cell{white-space:normal;line-height:1.4}
-.row-actions{display:flex;gap:3px;opacity:0;transition:opacity .15s}
+.row-actions{display:flex;gap:5px;opacity:1;transition:opacity .15s;justify-content:flex-end}
+.action-cell{overflow:visible}
+.action-cell .btn{min-width:34px;min-height:34px;justify-content:center;padding:7px 9px}
 .geo-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:5px;flex-shrink:0;vertical-align:middle}
 .geo-dot.ok{background:var(--green)}.geo-dot.no{background:var(--hint)}
 .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:100px;font-size:11px;font-weight:600}
 .badge-D{background:var(--blue-l);color:var(--blue)}
 .badge-S{background:var(--amber-l);color:var(--amber)}
 .badge-T{background:var(--green-l);color:var(--green)}
+.status-badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:100px;font-size:11px;font-weight:700}
+.status-pending{background:var(--blue-l);color:var(--blue)}
+.status-candidate{background:var(--green-l);color:var(--green)}
+.status-excluded{background:var(--red-l);color:var(--red)}
+.status-other{background:var(--surface2);color:var(--muted)}
 .go-chip{display:inline-flex;align-items:center;gap:3px;background:var(--purple-l);color:var(--purple);font-size:11px;font-weight:600;padding:2px 7px;border-radius:100px;white-space:nowrap}
+.sort-btn{border:0;background:transparent;color:inherit;font:inherit;font-weight:600;text-transform:inherit;letter-spacing:inherit;cursor:pointer;padding:0;display:inline-flex;align-items:center;gap:4px}
+.sort-btn:hover{color:var(--text)}
 .stars{letter-spacing:1px;font-size:13px}
 .star-on{color:var(--amber)}.star-off{color:var(--surface3)}
 .mono{font-family:monospace;font-size:12px}
@@ -130,6 +139,11 @@ textarea{resize:vertical;min-height:72px}
   .fg.full{grid-column:1}
   .header,.main{padding-left:16px;padding-right:16px}
   .modal-body,.modal-head,.modal-foot{padding-left:16px;padding-right:16px}
+  .header{height:auto;min-height:58px;gap:10px;align-items:flex-start;padding-top:10px;padding-bottom:10px}
+  .header-right{flex-wrap:wrap;justify-content:flex-end}
+  table{min-width:1180px}
+  .row-actions{opacity:1}
+  .action-cell .btn{min-width:38px;min-height:38px}
 }
 </style>
 </head>
@@ -167,6 +181,18 @@ textarea{resize:vertical;min-height:72px}
           </select>
         </div>
         <div class="fg">
+          <label for="f-status">记录类型</label>
+          <select id="f-status">
+            <option value="待看">待看</option>
+            <option value="候选">候选</option>
+            <option value="排除">排除</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label for="f-showing-time">看房时间</label>
+          <input id="f-showing-time" type="datetime-local">
+        </div>
+        <div class="fg">
           <label for="f-price">价格 (CAD)</label>
           <input id="f-price" type="number" placeholder="1250000" min="0">
         </div>
@@ -174,7 +200,6 @@ textarea{resize:vertical;min-height:72px}
           <label for="f-struct">房屋结构</label>
           <input id="f-struct" type="text" placeholder="例: 4b3.5b2g">
         </div>
-        <div class="fg"><!-- spacer --></div>
         <div class="fg">
           <label for="f-elem">对口小学</label>
           <input id="f-elem" type="text" placeholder="Elementary School">
@@ -232,7 +257,7 @@ textarea{resize:vertical;min-height:72px}
   <div class="logo">
     <div class="logo-icon">🏠</div>
     <div>
-      <div class="logo-text">看房记录 <span class="vbadge">V1.1</span></div>
+      <div class="logo-text">看房记录 <span class="vbadge">V1.2</span></div>
       <div class="logo-sub">Stouffville Line Edition · SQLite · OSRM 驾车距离</div>
     </div>
   </div>
@@ -261,7 +286,7 @@ textarea{resize:vertical;min-height:72px}
     <span style="color:var(--border)">|</span>
     <span>最后保存: <strong id="db-saved">—</strong></span>
     <span class="db-bar-sep"></span>
-    <span style="font-size:11px;color:var(--hint)">自动存储 IndexedDB · 导出 .sqlite 可拷贝至任意设备 · 兼容 V1.0 旧数据（自动迁移）</span>
+    <span style="font-size:11px;color:var(--hint)">自动存储 IndexedDB · 导出 .sqlite 可拷贝至任意设备 · 兼容 V1.0/V1.1 旧数据（自动迁移）</span>
   </div>
 
   <div class="confirm-bar hidden" id="confirm-bar">
@@ -286,13 +311,14 @@ textarea{resize:vertical;min-height:72px}
       <div class="table-wrap">
         <table>
           <colgroup>
-            <col style="width:19%"><col style="width:9%"><col style="width:10%"><col style="width:9%">
-            <col style="width:11%"><col style="width:12%"><col style="width:17%"><col style="width:7%"><col style="width:6%">
+            <col style="width:17%"><col style="width:8%"><col style="width:8%"><col style="width:10%"><col style="width:7%">
+            <col style="width:8%"><col style="width:9%"><col style="width:9%"><col style="width:12%"><col style="width:5%"><col style="width:7%">
           </colgroup>
           <thead>
             <tr>
-              <th>地址</th><th>类型</th><th>结构</th><th>价格</th>
-              <th>对口小学</th><th>对口高中</th><th>🚆 最近 GO 站</th><th>评分</th><th></th>
+              <th>地址</th><th>房屋类型</th><th>记录类型</th>
+              <th><button class="sort-btn" type="button" onclick="toggleShowingSort()">看房时间 <span id="showing-sort-ind">↓</span></button></th>
+              <th>结构</th><th>价格</th><th>对口小学</th><th>对口高中</th><th>🚆 最近 GO 站</th><th>评分</th><th></th>
             </tr>
           </thead>
           <tbody id="tbl-body"></tbody>
@@ -321,16 +347,22 @@ textarea{resize:vertical;min-height:72px}
 let SQL=null, db=null, map=null;
 let markers=[], currentRating=3, editId=null, delId=null;
 let geoTimer=null, geocoords=null;
+let showingSortDir='desc';
 
 const IDB={name:'HouseTracker_v2', store:'sqlite', key:'db'};
 const TYPE={D:{l:'独立屋',c:'#1E6FD9'}, S:{l:'半独立屋',c:'#B96B0A'}, T:{l:'镇屋',c:'#1A7A50'}};
+const STATUS={
+  '待看':{l:'待看',cls:'pending'},
+  '候选':{l:'候选',cls:'candidate'},
+  '排除':{l:'排除',cls:'excluded'},
+};
 
-/* ─── 4 目标 GO 站 (Stouffville 线，精确坐标) ─── */
+/* ─── 4 目标 GO 站 (Stouffville 线，按站点地址更新坐标) ─── */
 const TARGET_GO=[
-  {name:'Mount Joy',  lat:43.8993, lng:-79.2413},
-  {name:'Markham',    lat:43.8727, lng:-79.2636},
-  {name:'Unionville', lat:43.8541, lng:-79.2963},
-  {name:'Centennial', lat:43.8286, lng:-79.3188},
+  {name:'Mount Joy',  addr:'1801 Bur Oak Ave, Markham, ON L6E 1X2',       lat:43.9006, lng:-79.2631},
+  {name:'Markham',    addr:'214 Main Street Markham N, Markham, ON L3P 1Y5', lat:43.8828, lng:-79.2625},
+  {name:'Centennial', addr:'320 Bullock Dr, Unionville, ON L3R 8H4',       lat:43.8736, lng:-79.2892},
+  {name:'Unionville', addr:'155 YMCA Blvd, Markham, ON L6G 0A1',           lat:43.8517, lng:-79.3144},
 ];
 
 /* Stouffville 线全程站（地图背景参考，不参与距离计算） */
@@ -338,19 +370,19 @@ const BG_GO=[
   {n:'Kennedy',    lat:43.7312, lng:-79.2634},
   {n:'Agincourt',  lat:43.7784, lng:-79.2785},
   {n:'Milliken',   lat:43.8113, lng:-79.2781},
-  {n:'Centennial', lat:43.8286, lng:-79.3188},
-  {n:'Unionville', lat:43.8541, lng:-79.2963},
-  {n:'Markham',    lat:43.8727, lng:-79.2636},
-  {n:'Mount Joy',  lat:43.8993, lng:-79.2413},
+  {n:'Centennial', lat:43.8736, lng:-79.2892},
+  {n:'Unionville', lat:43.8517, lng:-79.3144},
+  {n:'Markham',    lat:43.8828, lng:-79.2625},
+  {n:'Mount Joy',  lat:43.9006, lng:-79.2631},
   {n:'Stouffville',lat:43.9706, lng:-79.2501},
 ];
 
 const SAMPLE=[
-  {addr:'88 Bur Oak Ave, Markham, ON',       type:'D', struct:'4b3b2g',   price:1280000, elem:'Bur Oak PS',       high:'Bur Oak SS',      go_dist:1.1, nearest_go_station:'Markham GO',    lat:43.885, lng:-79.260, rating:4, notes:'靠近 Markham GO，步行约 15 分钟'},
-  {addr:'45 Unionville Gate, Markham, ON',   type:'S', struct:'3b2.5b1g', price:990000,  elem:'Unionville PS',    high:'Unionville HS',   go_dist:1.3, nearest_go_station:'Unionville GO', lat:43.856, lng:-79.296, rating:3, notes:'历史小镇，学区优秀'},
-  {addr:'12 Cornell Centre Blvd, Markham',   type:'T', struct:'3b2b1g',   price:820000,  elem:'Cornell Village',  high:'Bill Hogarth SS', go_dist:1.8, nearest_go_station:'Centennial GO', lat:43.831, lng:-79.317, rating:5, notes:'Cornell 新社区，配套完善'},
-  {addr:'201 Major Mackenzie Dr E, Markham', type:'D', struct:'5b4b3g',   price:1450000, elem:'P.E. Trudeau PS',  high:'P.E. Trudeau HS', go_dist:0.7, nearest_go_station:'Mount Joy GO',  lat:43.897, lng:-79.245, rating:3, notes:'超大地块，步行可达 Mount Joy'},
-  {addr:'67 Church St, Markham, ON',         type:'D', struct:'4b3.5b2g', price:1150000, elem:'Markham Village',  high:'Markham DHS',     go_dist:1.0, nearest_go_station:'Markham GO',    lat:43.874, lng:-79.264, rating:4, notes:'老城区，社区氛围成熟'},
+  {addr:'88 Bur Oak Ave, Markham, ON',       type:'D', record_status:'候选', showing_time:'2026-05-18T10:30', struct:'4b3b2g',   price:1280000, elem:'Bur Oak PS',       high:'Bur Oak SS',      go_dist:1.1, nearest_go_station:'Markham GO',    lat:43.885, lng:-79.260, rating:4, notes:'靠近 Markham GO，步行约 15 分钟'},
+  {addr:'45 Unionville Gate, Markham, ON',   type:'S', record_status:'待看', showing_time:'2026-05-17T15:00', struct:'3b2.5b1g', price:990000,  elem:'Unionville PS',    high:'Unionville HS',   go_dist:1.3, nearest_go_station:'Unionville GO', lat:43.856, lng:-79.296, rating:3, notes:'历史小镇，学区优秀'},
+  {addr:'12 Cornell Centre Blvd, Markham',   type:'T', record_status:'排除', showing_time:'2026-05-15T11:00', struct:'3b2b1g',   price:820000,  elem:'Cornell Village',  high:'Bill Hogarth SS', go_dist:1.8, nearest_go_station:'Centennial GO', lat:43.831, lng:-79.317, rating:5, notes:'Cornell 新社区，配套完善'},
+  {addr:'201 Major Mackenzie Dr E, Markham', type:'D', record_status:'待看', showing_time:'2026-05-19T14:00', struct:'5b4b3g',   price:1450000, elem:'P.E. Trudeau PS',  high:'P.E. Trudeau HS', go_dist:0.7, nearest_go_station:'Mount Joy GO',  lat:43.897, lng:-79.245, rating:3, notes:'超大地块，步行可达 Mount Joy'},
+  {addr:'67 Church St, Markham, ON',         type:'D', record_status:'候选', showing_time:'2026-05-16T13:30', struct:'4b3.5b2g', price:1150000, elem:'Markham Village',  high:'Markham DHS',     go_dist:1.0, nearest_go_station:'Markham GO',    lat:43.874, lng:-79.264, rating:4, notes:'老城区，社区氛围成熟'},
 ];
 
 /* ═══════════════════════════════════════════
@@ -433,6 +465,8 @@ async function loadIDB(){
 const SCHEMA=`CREATE TABLE IF NOT EXISTS houses(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   addr TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'D',
+  record_status TEXT NOT NULL DEFAULT '待看',
+  showing_time TEXT,
   struct TEXT, price REAL DEFAULT 0, elem TEXT, high TEXT,
   go_dist REAL DEFAULT 0, lat REAL, lng REAL,
   rating INTEGER DEFAULT 3, notes TEXT,
@@ -441,26 +475,40 @@ const SCHEMA=`CREATE TABLE IF NOT EXISTS houses(
 );`;
 
 /**
- * V1.0 → V1.1 兼容迁移：
+ * V1.0/V1.1 → V1.2 兼容迁移：
  *   若导入旧版数据（无 nearest_go_station 列），自动添加该列，旧记录该字段为 NULL。
- *   界面中 NULL 值显示为"—"，并在每行显示"更新GO站"按钮供按需填充。
+ *   若缺少 record_status/showing_time，则补列；旧记录默认为"待看"，看房时间留空。
  */
 function migrateDb(){
   try{
+    let changed=false;
     const info=db.exec('PRAGMA table_info(houses)');
-    if(!info.length)return;
+    if(!info.length)return false;
     const cols=info[0].values.map(r=>r[1]);
     if(!cols.includes('nearest_go_station')){
       db.run('ALTER TABLE houses ADD COLUMN nearest_go_station TEXT');
-      console.info('[V1.1 migration] nearest_go_station column added (old data left NULL)');
+      console.info('[V1.2 migration] nearest_go_station column added (old data left NULL)');
+      changed=true;
     }
+    if(!cols.includes('record_status')){
+      db.run("ALTER TABLE houses ADD COLUMN record_status TEXT NOT NULL DEFAULT '待看'");
+      console.info('[V1.2 migration] record_status column added');
+      changed=true;
+    }
+    if(!cols.includes('showing_time')){
+      db.run('ALTER TABLE houses ADD COLUMN showing_time TEXT');
+      console.info('[V1.2 migration] showing_time column added');
+      changed=true;
+    }
+    return changed;
   }catch(e){console.warn('[migration]',e.message);}
+  return false;
 }
 
 function initSchema(){ db.run(SCHEMA); }
 function insertSample(){
-  const s=db.prepare('INSERT INTO houses(addr,type,struct,price,elem,high,go_dist,lat,lng,rating,notes,nearest_go_station)VALUES(?,?,?,?,?,?,?,?,?,?,?,?)');
-  SAMPLE.forEach(h=>s.run([h.addr,h.type,h.struct,h.price,h.elem,h.high,h.go_dist,h.lat,h.lng,h.rating,h.notes,h.nearest_go_station||null]));
+  const s=db.prepare('INSERT INTO houses(addr,type,record_status,showing_time,struct,price,elem,high,go_dist,lat,lng,rating,notes,nearest_go_station)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+  SAMPLE.forEach(h=>s.run([h.addr,h.type,h.record_status,h.showing_time,h.struct,h.price,h.elem,h.high,h.go_dist,h.lat,h.lng,h.rating,h.notes,h.nearest_go_station||null]));
   s.free();
 }
 
@@ -468,19 +516,20 @@ function insertSample(){
    CRUD
 ═══════════════════════════════════════════ */
 function getAll(){
-  const r=db.exec('SELECT * FROM houses ORDER BY id DESC');
+  const dir=showingSortDir==='asc'?'ASC':'DESC';
+  const r=db.exec(`SELECT * FROM houses ORDER BY CASE WHEN showing_time IS NULL OR showing_time='' THEN 1 ELSE 0 END, showing_time ${dir}, id DESC`);
   if(!r.length)return[];
   const cols=r[0].columns;
   return r[0].values.map(row=>{const o={};cols.forEach((c,i)=>o[c]=row[i]);return o;});
 }
 function insertH(h){
-  const s=db.prepare('INSERT INTO houses(addr,type,struct,price,elem,high,go_dist,lat,lng,rating,notes,nearest_go_station)VALUES(?,?,?,?,?,?,?,?,?,?,?,?)');
-  s.run([h.addr,h.type,h.struct||null,h.price||0,h.elem||null,h.high||null,h.go_dist||0,h.lat||null,h.lng||null,h.rating||3,h.notes||null,h.nearest_go_station||null]);
+  const s=db.prepare('INSERT INTO houses(addr,type,record_status,showing_time,struct,price,elem,high,go_dist,lat,lng,rating,notes,nearest_go_station)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+  s.run([h.addr,h.type,h.record_status||'待看',h.showing_time||null,h.struct||null,h.price||0,h.elem||null,h.high||null,h.go_dist||0,h.lat||null,h.lng||null,h.rating||3,h.notes||null,h.nearest_go_station||null]);
   s.free(); saveIDB();
 }
 function updateH(id,h){
-  const s=db.prepare('UPDATE houses SET addr=?,type=?,struct=?,price=?,elem=?,high=?,go_dist=?,lat=?,lng=?,rating=?,notes=?,nearest_go_station=? WHERE id=?');
-  s.run([h.addr,h.type,h.struct||null,h.price||0,h.elem||null,h.high||null,h.go_dist||0,h.lat||null,h.lng||null,h.rating||3,h.notes||null,h.nearest_go_station||null,id]);
+  const s=db.prepare('UPDATE houses SET addr=?,type=?,record_status=?,showing_time=?,struct=?,price=?,elem=?,high=?,go_dist=?,lat=?,lng=?,rating=?,notes=?,nearest_go_station=? WHERE id=?');
+  s.run([h.addr,h.type,h.record_status||'待看',h.showing_time||null,h.struct||null,h.price||0,h.elem||null,h.high||null,h.go_dist||0,h.lat||null,h.lng||null,h.rating||3,h.notes||null,h.nearest_go_station||null,id]);
   s.free(); saveIDB();
 }
 function writeGoToDb(id, dist, station){
@@ -498,12 +547,28 @@ function fmtS(s){if(!s)return'—';const m=s.match(/^(\d+)b([\d.]+)b(\d+)g$/i);r
 function fmtStars(n){const r=parseInt(n)||0;return`<span class="stars"><span class="star-on">${'★'.repeat(r)}</span><span class="star-off">${'★'.repeat(5-r)}</span></span>`;}
 function fmtBytes(b){if(b<1024)return b+' B';if(b<1024*1024)return(b/1024).toFixed(1)+' KB';return(b/1024/1024).toFixed(2)+' MB';}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtStatus(s){
+  const key=s||'待看', meta=STATUS[key]||{l:key,cls:'other'};
+  return`<span class="status-badge status-${meta.cls}">${esc(meta.l)}</span>`;
+}
+function fmtShowingTime(v){
+  if(!v)return'<span style="color:var(--hint)">—</span>';
+  const d=new Date(v);
+  if(Number.isNaN(d.getTime()))return esc(v);
+  return d.toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+}
 function fmtGO(h){
   if(h.nearest_go_station && h.go_dist)
     return`<div class="go-cell"><span class="go-chip">🚆 ${esc(h.nearest_go_station)}</span><br><span style="font-size:11px;color:var(--muted)">${h.go_dist} km 驾车</span></div>`;
   if(h.go_dist)
     return`<span style="color:var(--muted)">${h.go_dist} km</span>`;
   return`<span style="color:var(--hint)">—</span>`;
+}
+function toggleShowingSort(){
+  showingSortDir=showingSortDir==='desc'?'asc':'desc';
+  const ind=g('showing-sort-ind');
+  if(ind)ind.textContent=showingSortDir==='desc'?'↓':'↑';
+  renderTable();
 }
 
 /* ═══════════════════════════════════════════
@@ -546,19 +611,21 @@ function renderTable(){
         <span class="geo-dot ${h.lat&&h.lng?'ok':'no'}" title="${h.lat&&h.lng?'已自动定位':'未定位，GO站无法计算'}"></span>${esc(h.addr)}
       </td>
       <td><span class="badge badge-${h.type}">${h.type}&nbsp;${TYPE[h.type]?.l||''}</span></td>
+      <td>${fmtStatus(h.record_status)}</td>
+      <td title="${esc(h.showing_time||'')}">${fmtShowingTime(h.showing_time)}</td>
       <td class="mono">${fmtS(h.struct)}</td>
       <td style="font-weight:600">${fmtP(h.price)}</td>
       <td style="color:var(--muted);font-size:12px" title="${esc(h.elem||'')}">${esc(h.elem||'—')}</td>
       <td style="color:var(--muted);font-size:12px" title="${esc(h.high||'')}">${esc(h.high||'—')}</td>
       <td>${fmtGO(h)}</td>
       <td>${fmtStars(h.rating)}</td>
-      <td>
+      <td class="action-cell">
         <div class="row-actions">
           <button class="btn btn-go btn-xs" id="go-btn-${h.id}" onclick="updateOneGO(${h.id})"
             title="${h.lat&&h.lng?'重新计算到4个GO站的驾车距离':'请先编辑并定位地址'}"
             ${!h.lat||!h.lng?'disabled':''}>🚆</button>
           <button class="btn btn-ghost btn-xs" onclick="openEdit(${h.id})" title="编辑">✎</button>
-          <button class="btn btn-ghost btn-xs" onclick="askDel(${h.id})" title="删除" style="color:var(--red)">✕</button>
+          <button class="btn btn-danger btn-xs" onclick="askDel(${h.id})" title="删除" aria-label="删除">✕</button>
         </div>
       </td>
     </tr>
@@ -592,7 +659,7 @@ function initMap(){
       className:'', iconAnchor:[60,18]
     });
     L.marker([s.lat,s.lng],{icon,zIndexOffset:300}).addTo(map)
-      .bindPopup(`<b style="font-family:system-ui">${s.name} GO</b><br><span style="font-size:12px;color:#888;font-family:system-ui">Stouffville Line · V1.1 目标站</span>`);
+      .bindPopup(`<b style="font-family:system-ui">${s.name} GO</b><br><span style="font-size:12px;color:#888;font-family:system-ui">${esc(s.addr)}<br>Stouffville Line · V1.2 目标站</span>`);
   });
 }
 
@@ -612,7 +679,8 @@ function renderMapMarkers(){
     const popup=`
       <div style="font-family:'DM Sans',system-ui,sans-serif;min-width:230px">
         <p style="font-weight:700;font-size:14px;margin-bottom:7px">${esc(h.addr)}</p>
-        <p style="font-size:12px;color:#706e67;margin-bottom:3px">${TYPE[h.type]?.l||''} · ${fmtP(h.price)}</p>
+        <p style="font-size:12px;color:#706e67;margin-bottom:3px">${TYPE[h.type]?.l||''} · ${esc(h.record_status||'待看')} · ${fmtP(h.price)}</p>
+        <p style="font-size:12px;color:#706e67;margin-bottom:3px">看房: ${fmtShowingTime(h.showing_time).replace(/<[^>]+>/g,'')}</p>
         <p style="font-size:12px;color:#706e67;margin-bottom:3px">结构: ${fmtS(h.struct)}</p>
         <p style="font-size:12px;color:#706e67;margin-bottom:3px">小学: ${esc(h.elem||'—')}</p>
         <p style="font-size:12px;color:#706e67;margin-bottom:5px">高中: ${esc(h.high||'—')}</p>
@@ -654,8 +722,9 @@ function switchView(v){
 function openAdd(){
   editId=null; geocoords=null;
   g('modal-title').textContent='添加房源';
-  ['f-addr','f-struct','f-price','f-elem','f-high','f-notes'].forEach(id=>g(id).value='');
+  ['f-addr','f-struct','f-price','f-elem','f-high','f-notes','f-showing-time'].forEach(id=>g(id).value='');
   g('f-type').value='D';
+  g('f-status').value='待看';
   g('f-nearest-go').value=''; g('f-go').value='';
   setRating(3);
   setGeoSt('idle','输入地址后自动定位');
@@ -672,6 +741,8 @@ function openEdit(id){
   g('modal-title').textContent='编辑房源';
   g('f-addr').value=h.addr||'';
   g('f-type').value=h.type||'D';
+  g('f-status').value=h.record_status||'待看';
+  g('f-showing-time').value=h.showing_time||'';
   g('f-struct').value=h.struct||'';
   g('f-price').value=h.price||'';
   g('f-elem').value=h.elem||'';
@@ -696,6 +767,8 @@ function saveHouse(){
   if(!addr){toast('请输入房屋地址','err');return;}
   const h={
     addr, type:g('f-type').value,
+    record_status:g('f-status').value,
+    showing_time:g('f-showing-time').value,
     struct:g('f-struct').value.trim(),
     price:parseFloat(g('f-price').value)||0,
     elem:g('f-elem').value.trim(),
@@ -730,7 +803,7 @@ function scheduleGeo(){
 async function doGeocode(addr){
   try{
     const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1&countrycodes=ca`;
-    const res=await fetch(url,{headers:{'Accept-Language':'zh-CN,en','User-Agent':'HouseTracker/1.1'}});
+    const res=await fetch(url,{headers:{'Accept-Language':'zh-CN,en','User-Agent':'HouseTracker/1.2'}});
     const data=await res.json();
     if(data&&data.length>0){
       geocoords={lat:parseFloat(data[0].lat), lng:parseFloat(data[0].lon)};
@@ -846,7 +919,7 @@ function exportDb(){
   const data=db.export();
   const url=URL.createObjectURL(new Blob([data],{type:'application/x-sqlite3'}));
   const a=document.createElement('a');
-  a.href=url; a.download=`看房记录_V1.1_${new Date().toISOString().slice(0,10)}.sqlite`;
+  a.href=url; a.download=`看房记录_V1.2_${new Date().toISOString().slice(0,10)}.sqlite`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
   toast('SQLite 已导出，可拷贝至任意设备','ok');
@@ -858,7 +931,7 @@ async function onImport(e){
     const buf=await file.arrayBuffer();
     db=new SQL.Database(new Uint8Array(buf));
     db.run(SCHEMA);   // 确保表存在
-    migrateDb();      // V1.0 → V1.1：添加缺失列，旧数据留 NULL
+    migrateDb();      // V1.0/V1.1 → V1.2：添加缺失列，旧数据留 NULL
     await saveIDB();
     renderTable(); if(map)renderMapMarkers();
     toast(`已导入 "${file.name}"（旧版数据自动迁移，缺失 GO 站信息可逐条更新）`,'ok');
@@ -890,7 +963,8 @@ async function init(){
     if(saved){
       db=new SQL.Database(saved);
       db.run(SCHEMA);  // 确保表存在（空库情况）
-      migrateDb();     // 检测并升级 V1.0 → V1.1
+      const migrated=migrateDb();     // 检测并升级 V1.0/V1.1 → V1.2
+      if(migrated) await saveIDB();
     }else{
       db=new SQL.Database();
       initSchema(); insertSample(); await saveIDB();
