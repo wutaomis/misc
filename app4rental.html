@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>看房记录 V1.5</title>
+<title>看房记录 V1.6</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
@@ -59,7 +59,6 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .db-bar{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:14px;font-size:12px;color:var(--muted);flex-wrap:wrap}
 .db-bar strong{color:var(--text);font-weight:600}
 .db-bar-sep{flex:1}
-.confirm-bar{background:var(--red-l);border:1px solid #f5b5b5;border-radius:var(--r);padding:11px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
 .tabs{display:flex;gap:2px;background:var(--surface2);border-radius:var(--r);padding:3px;width:fit-content;margin-bottom:16px}
 .tab{padding:7px 20px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--muted);font-family:inherit;transition:all .15s}
 .tab.active{background:var(--surface);color:var(--text);box-shadow:var(--sh)}
@@ -67,7 +66,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .card-toolbar{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .card-toolbar-count{font-size:13px;color:var(--muted)}
 .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-table{width:100%;min-width:1320px;border-collapse:collapse;font-size:13px;table-layout:fixed}
+table{width:100%;min-width:1440px;border-collapse:collapse;font-size:13px;table-layout:fixed}
 col.col-addr{width:210px}
 col.col-house-type{width:96px}
 col.col-status{width:92px}
@@ -76,14 +75,19 @@ col.col-struct{width:90px}
 col.col-price{width:96px}
 col.col-school{width:116px}
 col.col-go{width:160px}
+col.col-created{width:120px}
 col.col-rating{width:92px}
 col.col-actions{width:142px}
 thead th{padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;background:var(--surface2);border-bottom:1px solid var(--border)}
+thead th.sticky-col{z-index:6}
 tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
 tbody tr:last-child{border-bottom:none}
 tbody tr:hover{background:var(--surface2)}
 tbody tr:hover .row-actions{opacity:1}
 tbody td{padding:10px 14px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+th.sticky-col,td.sticky-col{position:sticky;left:0;background:var(--surface);z-index:4;box-shadow:1px 0 0 var(--border),5px 0 10px rgba(0,0,0,.04)}
+thead th.sticky-col{background:var(--surface2)}
+tbody tr:hover td.sticky-col{background:var(--surface2)}
 .go-cell{white-space:normal;line-height:1.4}
 .rating-cell{overflow:visible;text-align:left}
 .row-actions{display:flex;gap:6px;opacity:1;transition:opacity .15s;justify-content:flex-end;align-items:center;flex-wrap:nowrap;min-width:120px}
@@ -117,10 +121,13 @@ tbody td{padding:10px 14px;vertical-align:middle;overflow:hidden;text-overflow:e
 .leaflet-popup-content{margin:14px 16px!important;font-family:'DM Sans',system-ui,sans-serif!important}
 .overlay{position:fixed;inset:0;background:rgba(20,20,18,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
 .modal{background:var(--surface);border-radius:var(--rxl);width:100%;max-width:700px;max-height:92vh;overflow-y:auto;box-shadow:var(--shl)}
+.modal.delete-modal{max-width:430px}
 .modal-head{padding:22px 24px 0;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
 .modal-title{font-family:'DM Serif Display',serif;font-size:20px}
 .modal-body{padding:0 24px}
 .modal-foot{padding:18px 24px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--border);margin-top:18px}
+.delete-message{font-size:13px;color:var(--muted)}
+.delete-target{margin-top:10px;padding:10px 12px;background:var(--red-l);border:1px solid #f5b5b5;border-radius:var(--r);font-size:13px;color:var(--red);word-break:break-word}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .fg{display:flex;flex-direction:column;gap:5px}
 .fg.full{grid-column:1/-1}
@@ -158,7 +165,7 @@ textarea{resize:vertical;min-height:72px}
   .header-right{flex-wrap:wrap;justify-content:flex-end}
   .tabs{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
   .tab{flex:0 0 auto;padding-left:14px;padding-right:14px}
-  table{min-width:1320px}
+  table{min-width:1440px}
   .embed-frame{height:calc(100vh - 270px);min-height:520px}
   .row-actions{opacity:1}
   .action-cell .btn{width:40px;min-width:40px;height:40px;min-height:40px;flex-basis:40px}
@@ -270,12 +277,30 @@ textarea{resize:vertical;min-height:72px}
   </div>
 </div>
 
+<!-- Delete Modal -->
+<div class="overlay hidden" id="delete-overlay">
+  <div class="modal delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+    <div class="modal-head">
+      <h2 class="modal-title" id="delete-title">删除记录</h2>
+      <button class="btn btn-ghost btn-icon" onclick="cancelDel()" aria-label="关闭">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="delete-message">确认删除这条看房记录？此操作无法撤销。</p>
+      <div class="delete-target" id="delete-target">—</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="cancelDel()">取消</button>
+      <button class="btn btn-danger" onclick="confirmDel()">确认删除</button>
+    </div>
+  </div>
+</div>
+
 <!-- Header -->
 <header class="header">
   <div class="logo">
     <div class="logo-icon">🏠</div>
     <div>
-      <div class="logo-text">看房记录 <span class="vbadge">V1.5</span></div>
+      <div class="logo-text">看房记录 <span class="vbadge">V1.6</span></div>
       <div class="logo-sub">Stouffville Line Edition · Supabase · OSRM 驾车距离</div>
     </div>
   </div>
@@ -307,14 +332,6 @@ textarea{resize:vertical;min-height:72px}
     <span style="font-size:11px;color:var(--hint)">直接访问 Supabase · 两个用户共享同一张 houses 表 · 支持旧版 SQLite 一次性导入</span>
   </div>
 
-  <div class="confirm-bar hidden" id="confirm-bar">
-    <span style="font-size:13px;color:var(--red)">⚠ 确认删除这条记录？此操作无法撤销。</span>
-    <div style="display:flex;gap:8px;flex-shrink:0">
-      <button class="btn btn-outline btn-sm" onclick="cancelDel()">取消</button>
-      <button class="btn btn-danger btn-sm" onclick="confirmDel()">确认删除</button>
-    </div>
-  </div>
-
   <div class="tabs">
     <button class="tab active" id="tab-t" onclick="switchView('table')">▦ 表格视图</button>
     <button class="tab" id="tab-m" onclick="switchView('map')">◉ 地图视图</button>
@@ -332,13 +349,15 @@ textarea{resize:vertical;min-height:72px}
         <table>
           <colgroup>
             <col class="col-addr"><col class="col-house-type"><col class="col-status"><col class="col-showing"><col class="col-struct">
-            <col class="col-price"><col class="col-school"><col class="col-school"><col class="col-go"><col class="col-rating"><col class="col-actions">
+            <col class="col-price"><col class="col-school"><col class="col-school"><col class="col-go"><col class="col-created"><col class="col-rating"><col class="col-actions">
           </colgroup>
           <thead>
             <tr>
-              <th>地址</th><th>房屋类型</th><th>记录类型</th>
-              <th><button class="sort-btn" type="button" onclick="toggleShowingSort()">看房时间 <span id="showing-sort-ind">↓</span></button></th>
-              <th>结构</th><th>价格</th><th>对口小学</th><th>对口高中</th><th>🚆 最近 GO 站</th><th>评分</th><th></th>
+              <th class="sticky-col">地址</th><th>房屋类型</th><th>记录类型</th>
+              <th><button class="sort-btn" type="button" onclick="toggleSort('showing_time')">看房时间 <span id="showing-sort-ind">↓</span></button></th>
+              <th>结构</th><th>价格</th><th>对口小学</th><th>对口高中</th><th>🚆 最近 GO 站</th>
+              <th><button class="sort-btn" type="button" onclick="toggleSort('created_at')">创建时间 <span id="created-sort-ind"></span></button></th>
+              <th>评分</th><th></th>
             </tr>
           </thead>
           <tbody id="tbl-body"></tbody>
@@ -403,10 +422,10 @@ textarea{resize:vertical;min-height:72px}
 let supabaseClient=null, map=null;
 let markers=[], currentRating=3, editId=null, delId=null;
 let geoTimer=null, geocoords=null;
-let showingSortDir='desc';
+let sortKey='showing_time', sortDir='desc';
 let housesCache=[];
 
-const APP_VERSION='1.5';
+const APP_VERSION='1.6';
 const SUPABASE_CONFIG={
   url:'https://muftliyimizceefbnely.supabase.co/rest/v1/',
   anonKey:'sb_publishable_TYWRmCX8OpjiBq3yVicJLw_SHJUC8s1',
@@ -506,7 +525,7 @@ const LEGACY_SCHEMA=`CREATE TABLE IF NOT EXISTS houses(
 );`;
 
 /**
- * V1.0/V1.1/V1.2 SQLite → V1.5 Supabase 兼容迁移：
+ * V1.0/V1.1/V1.2 SQLite → V1.6 Supabase 兼容迁移：
  *   若导入旧版数据（无 nearest_go_station 列），自动添加该列，旧记录该字段为 NULL。
  *   若缺少 record_status/showing_time，则补列；旧记录默认为"待看"，看房时间留空。
  */
@@ -518,17 +537,17 @@ function migrateLegacyDb(legacyDb){
     const cols=info[0].values.map(r=>r[1]);
     if(!cols.includes('nearest_go_station')){
       legacyDb.run('ALTER TABLE houses ADD COLUMN nearest_go_station TEXT');
-      console.info('[V1.5 migration] nearest_go_station column added (old data left NULL)');
+      console.info('[V1.6 migration] nearest_go_station column added (old data left NULL)');
       changed=true;
     }
     if(!cols.includes('record_status')){
       legacyDb.run("ALTER TABLE houses ADD COLUMN record_status TEXT NOT NULL DEFAULT '待看'");
-      console.info('[V1.5 migration] record_status column added');
+      console.info('[V1.6 migration] record_status column added');
       changed=true;
     }
     if(!cols.includes('showing_time')){
       legacyDb.run('ALTER TABLE houses ADD COLUMN showing_time TEXT');
-      console.info('[V1.5 migration] showing_time column added');
+      console.info('[V1.6 migration] showing_time column added');
       changed=true;
     }
     return changed;
@@ -592,11 +611,20 @@ function normalizeHouse(h){
     created_at:h.created_at||null,
   };
 }
+function sortValue(h, key){
+  const v=h[key]||'';
+  if(!v)return 0;
+  const t=Date.parse(String(v).replace(' ','T'));
+  return Number.isNaN(t)?String(v):t;
+}
 function sortHouses(rows){
-  const dir=showingSortDir==='asc'?1:-1;
+  const dir=sortDir==='asc'?1:-1;
   return [...rows].sort((a,b)=>{
-    const av=a.showing_time||'', bv=b.showing_time||'';
-    if(av && bv && av!==bv)return av>bv?dir:-dir;
+    const av=a[sortKey]||'', bv=b[sortKey]||'';
+    if(av && bv){
+      const as=sortValue(a, sortKey), bs=sortValue(b, sortKey);
+      if(as!==bs)return as>bs?dir:-dir;
+    }
     if(av&&!bv)return -1;
     if(!av&&bv)return 1;
     return (Number(b.id)||0)-(Number(a.id)||0);
@@ -610,7 +638,7 @@ async function loadHouses(){
   const {data,error}=await supabaseClient
     .from(SUPABASE_CONFIG.table)
     .select('*')
-    .order('showing_time',{ascending:showingSortDir==='asc', nullsFirst:false})
+    .order(sortKey,{ascending:sortDir==='asc', nullsFirst:false})
     .order('id',{ascending:false});
   if(error)throw error;
   housesCache=(data||[]).map(normalizeHouse);
@@ -669,11 +697,20 @@ function fmtStatus(s){
   const key=s||'待看', meta=STATUS[key]||{l:key,cls:'other'};
   return`<span class="status-badge status-${meta.cls}">${esc(meta.l)}</span>`;
 }
-function fmtShowingTime(v){
+function fmtDateTime(v, includeYear=false){
   if(!v)return'<span style="color:var(--hint)">—</span>';
-  const d=new Date(v);
+  const d=new Date(String(v).replace(' ','T'));
   if(Number.isNaN(d.getTime()))return esc(v);
-  return d.toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+  const opts=includeYear
+    ?{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}
+    :{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false};
+  return d.toLocaleString('zh-CN',opts);
+}
+function fmtShowingTime(v){
+  return fmtDateTime(v, false);
+}
+function fmtCreatedTime(v){
+  return fmtDateTime(v, true);
 }
 function fmtGO(h){
   if(h.nearest_go_station && h.go_dist)
@@ -682,10 +719,15 @@ function fmtGO(h){
     return`<span style="color:var(--muted)">${h.go_dist} km</span>`;
   return`<span style="color:var(--hint)">—</span>`;
 }
-function toggleShowingSort(){
-  showingSortDir=showingSortDir==='desc'?'asc':'desc';
-  const ind=g('showing-sort-ind');
-  if(ind)ind.textContent=showingSortDir==='desc'?'↓':'↑';
+function updateSortIndicators(){
+  const showing=g('showing-sort-ind'), created=g('created-sort-ind');
+  if(showing)showing.textContent=sortKey==='showing_time'?(sortDir==='desc'?'↓':'↑'):'';
+  if(created)created.textContent=sortKey==='created_at'?(sortDir==='desc'?'↓':'↑'):'';
+}
+function toggleSort(key){
+  if(sortKey===key)sortDir=sortDir==='desc'?'asc':'desc';
+  else{sortKey=key; sortDir='desc';}
+  updateSortIndicators();
   renderTable();
 }
 
@@ -723,9 +765,10 @@ function renderTable(){
   const tbody=g('tbl-body'), empty=g('empty');
   if(!houses.length){tbody.innerHTML='';empty.classList.remove('hidden');return;}
   empty.classList.add('hidden');
+  updateSortIndicators();
   tbody.innerHTML=houses.map(h=>`
     <tr>
-      <td title="${esc(h.addr)}">
+      <td class="sticky-col" title="${esc(h.addr)}">
         <span class="geo-dot ${h.lat&&h.lng?'ok':'no'}" title="${h.lat&&h.lng?'已自动定位':'未定位，GO站无法计算'}"></span>${esc(h.addr)}
       </td>
       <td><span class="badge badge-${h.type}">${h.type}&nbsp;${TYPE[h.type]?.l||''}</span></td>
@@ -736,6 +779,7 @@ function renderTable(){
       <td style="color:var(--muted);font-size:12px" title="${esc(h.elem||'')}">${esc(h.elem||'—')}</td>
       <td style="color:var(--muted);font-size:12px" title="${esc(h.high||'')}">${esc(h.high||'—')}</td>
       <td>${fmtGO(h)}</td>
+      <td title="${esc(h.created_at||'')}">${fmtCreatedTime(h.created_at)}</td>
       <td class="rating-cell">${fmtStars(h.rating)}</td>
       <td class="action-cell">
         <div class="row-actions">
@@ -1031,15 +1075,17 @@ function setRating(n){
   document.querySelectorAll('#star-picker span').forEach((s,i)=>s.classList.toggle('on',i<n));
 }
 function askDel(id){
-  delId=id; g('confirm-bar').classList.remove('hidden');
-  g('confirm-bar').scrollIntoView({behavior:'smooth',block:'nearest'});
+  const h=getAll().find(x=>Number(x.id)===Number(id));
+  delId=id;
+  g('delete-target').textContent=h?.addr||`#${id}`;
+  g('delete-overlay').classList.remove('hidden');
 }
-function cancelDel(){delId=null; g('confirm-bar').classList.add('hidden');}
+function cancelDel(){delId=null; g('delete-overlay').classList.add('hidden');}
 async function confirmDel(){
   if(!delId)return;
   try{
     await deleteH(delId); delId=null;
-    g('confirm-bar').classList.add('hidden');
+    g('delete-overlay').classList.add('hidden');
     renderTable(); if(map)renderMapMarkers();
     toast('记录已删除','ok');
   }catch(e){
@@ -1117,7 +1163,7 @@ function toast(msg,type='ok'){
     setTimeout(()=>d.remove(),320);
   },3500);
 }
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();cancelDel();}});
 
 /* ═══════════════════════════════════════════
    Init
