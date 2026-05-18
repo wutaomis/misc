@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>看房记录 V1.8</title>
+<title>看房记录 V1.9</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
@@ -65,7 +65,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden}
 .card-toolbar{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .card-toolbar-count{font-size:13px;color:var(--muted)}
-.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;overscroll-behavior-x:contain;outline:none}
 table{width:100%;min-width:1440px;border-collapse:collapse;font-size:13px;table-layout:fixed}
 col.col-addr{width:210px}
 col.col-house-type{width:96px}
@@ -300,7 +300,7 @@ textarea{resize:vertical;min-height:72px}
   <div class="logo">
     <div class="logo-icon">🏠</div>
     <div>
-      <div class="logo-text">看房记录 <span class="vbadge">V1.8</span></div>
+      <div class="logo-text">看房记录 <span class="vbadge">V1.9</span></div>
       <div class="logo-sub">Stouffville Line Edition · Supabase · OSRM 驾车距离</div>
     </div>
   </div>
@@ -357,7 +357,7 @@ textarea{resize:vertical;min-height:72px}
         </div>
         <button class="btn btn-go btn-sm" id="btn-batch" onclick="batchUpdateGO()">🚆 批量更新 GO 站</button>
       </div>
-      <div class="table-wrap">
+      <div class="table-wrap" id="table-wrap" tabindex="0">
         <table>
           <colgroup>
             <col class="col-addr"><col class="col-house-type"><col class="col-status"><col class="col-showing"><col class="col-struct">
@@ -437,7 +437,7 @@ let geoTimer=null, geocoords=null;
 let sortKey='showing_time', sortDir='desc';
 let housesCache=[];
 
-const APP_VERSION='1.8';
+const APP_VERSION='1.9';
 let searchQuery='';
 const SUPABASE_CONFIG={
   url:'https://muftliyimizceefbnely.supabase.co/rest/v1/',
@@ -454,7 +454,7 @@ const STATUS={
 const STATUS_MAP={
   '待看':{bg:'#1E6FD9', border:'#1557ad', label:'待看'},
   '候选':{bg:'#1A7A50', border:'#146040', label:'候选'},
-  '排除':{bg:'#A0A09A', border:'#7a7a74', label:'排除'},
+  '排除':{bg:'#C13333', border:'#a02828', label:'排除'},
 };
 
 /* ─── 4 目标 GO 站 (Stouffville 线，按站点地址更新坐标) ─── */
@@ -1220,6 +1220,12 @@ function toast(msg,type='ok'){
   },3500);
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();cancelDel();}});
+g('table-wrap').addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
+    e.preventDefault();
+    g('table-wrap').scrollBy({left:e.key==='ArrowRight'?120:-120,behavior:'smooth'});
+  }
+});
 
 /* ═══════════════════════════════════════════
    Init
