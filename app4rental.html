@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>看房记录 V1.9</title>
+<title>看房记录 V2.0</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
@@ -154,6 +154,12 @@ textarea{resize:vertical;min-height:72px}
 .toast{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:11px 16px;box-shadow:var(--shm);font-size:13px;display:flex;align-items:center;gap:8px;animation:tslide .2s ease;min-width:220px;max-width:360px;pointer-events:auto}
 .toast.ok{border-left:3px solid var(--green)}.toast.err{border-left:3px solid var(--red)}
 @keyframes tslide{from{transform:translateX(110%);opacity:0}to{transform:none;opacity:1}}
+.filter-btn{display:inline-flex;align-items:center;padding:4px 11px;border-radius:100px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-family:inherit;transition:all .15s;line-height:1.4;white-space:nowrap}
+.filter-btn:hover{background:var(--surface2);border-color:var(--border2);color:var(--text)}
+.filter-btn.filter-active{background:var(--surface2);border-color:var(--border2);color:var(--text)}
+.filter-btn[data-filter="待看"].filter-active{background:var(--blue-l);border-color:var(--blue);color:var(--blue)}
+.filter-btn[data-filter="候选"].filter-active{background:var(--green-l);border-color:var(--green);color:var(--green)}
+.filter-btn[data-filter="排除"].filter-active{background:var(--red-l);border-color:var(--red);color:var(--red)}
 .hidden{display:none!important}
 @media(max-width:768px){
   .stats{grid-template-columns:repeat(2,1fr)}
@@ -300,7 +306,7 @@ textarea{resize:vertical;min-height:72px}
   <div class="logo">
     <div class="logo-icon">🏠</div>
     <div>
-      <div class="logo-text">看房记录 <span class="vbadge">V1.9</span></div>
+      <div class="logo-text">看房记录 <span class="vbadge">V2.0</span></div>
       <div class="logo-sub">Stouffville Line Edition · Supabase · OSRM 驾车距离</div>
     </div>
   </div>
@@ -344,6 +350,12 @@ textarea{resize:vertical;min-height:72px}
       <div class="card-toolbar">
         <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
           <span class="card-toolbar-count" id="tbl-count">共 0 条记录</span>
+          <div style="display:flex;align-items:center;gap:4px">
+            <button class="filter-btn filter-active" data-filter="" onclick="setFilter('')">全部</button>
+            <button class="filter-btn" data-filter="待看" onclick="setFilter('待看')">待看</button>
+            <button class="filter-btn" data-filter="候选" onclick="setFilter('候选')">候选</button>
+            <button class="filter-btn" data-filter="排除" onclick="setFilter('排除')">排除</button>
+          </div>
           <div style="position:relative;flex:1;max-width:320px">
             <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--hint);font-size:14px;pointer-events:none">⌕</span>
             <input id="addr-search" type="text" placeholder="搜索地址…" autocomplete="off"
@@ -435,9 +447,9 @@ let supabaseClient=null, map=null;
 let markers=[], currentRating=3, editId=null, delId=null;
 let geoTimer=null, geocoords=null;
 let sortKey='showing_time', sortDir='desc';
-let housesCache=[];
+let housesCache=[], statusFilter='';
 
-const APP_VERSION='1.9';
+const APP_VERSION='2.0';
 let searchQuery='';
 const SUPABASE_CONFIG={
   url:'https://muftliyimizceefbnely.supabase.co/rest/v1/',
@@ -649,10 +661,19 @@ function sortHouses(rows){
   });
 }
 function getAll(){
-  const sorted=sortHouses(housesCache);
+  let sorted=sortHouses(housesCache);
+  if(statusFilter) sorted=sorted.filter(h=>h.record_status===statusFilter);
   if(!searchQuery)return sorted;
   const q=searchQuery.toLowerCase();
   return sorted.filter(h=>h.addr.toLowerCase().includes(q));
+}
+function setFilter(status){
+  statusFilter=status;
+  document.querySelectorAll('.filter-btn').forEach(btn=>{
+    btn.classList.toggle('filter-active', btn.dataset.filter===status);
+  });
+  renderTable();
+  if(map)renderMapMarkers();
 }
 function onSearchInput(val){
   searchQuery=val.trim();
