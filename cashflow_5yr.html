@@ -3,7 +3,72 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>现金流推演 v9 · HELOC × XEI</title>
+<title>现金流推演 v13 · 多品种建仓 × Supabase</title>
+<!--
+  ══════════════════════════════════════════════
+  Supabase 建表 SQL（在 SQL Editor 中执行一次）
+  ──────────────────────────────────────────────
+  -- 参数表（单行，id 固定为 1）
+  CREATE TABLE cashflow_params (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    start_month TEXT DEFAULT '2026-10',
+    salary NUMERIC DEFAULT 4700,
+    rent NUMERIC DEFAULT 3200,
+    other_income_annual NUMERIC DEFAULT 0,
+    insur NUMERIC DEFAULT 100,
+    maint NUMERIC DEFAULT 300,
+    ptax_annual NUMERIC DEFAULT 6400,
+    marginal_tax_rate NUMERIC DEFAULT 30,
+    heloc_limit NUMERIC DEFAULT 300000,
+    heloc_rate NUMERIC DEFAULT 4.95,
+    term_amt NUMERIC DEFAULT 0,
+    term_rate NUMERIC DEFAULT 5.5,
+    term_amort INTEGER DEFAULT 25,
+    xei_init_price NUMERIC DEFAULT 37,
+    xei_init_shares NUMERIC DEFAULT 0,
+    xei_dps NUMERIC DEFAULT 0.11,
+    xei_monthly_growth NUMERIC DEFAULT 0.5,
+    xeqt_init_price NUMERIC DEFAULT 30,
+    xeqt_init_shares NUMERIC DEFAULT 0,
+    xeqt_annual_yield NUMERIC DEFAULT 2.5,
+    xeqt_monthly_growth NUMERIC DEFAULT 0.6,
+    qqq_init_price NUMERIC DEFAULT 500,
+    qqq_init_shares NUMERIC DEFAULT 0,
+    qqq_annual_yield NUMERIC DEFAULT 0.6,
+    qqq_monthly_growth NUMERIC DEFAULT 1.0,
+    shv_init_price NUMERIC DEFAULT 50,
+    shv_init_shares NUMERIC DEFAULT 0,
+    shv_annual_yield NUMERIC DEFAULT 4.5,
+    shv_monthly_growth NUMERIC DEFAULT 0.05,
+    updated_at TIMESTAMPTZ DEFAULT now()
+  );
+  INSERT INTO cashflow_params (id) VALUES (1) ON CONFLICT DO NOTHING;
+  ALTER TABLE cashflow_params ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY "allow_all" ON cashflow_params FOR ALL USING (true) WITH CHECK (true);
+
+  -- 建仓记录表
+  CREATE TABLE cashflow_purchases (
+    id BIGSERIAL PRIMARY KEY,
+    purchase_month TEXT NOT NULL,
+    ticker TEXT NOT NULL CHECK (ticker IN ('XEI','XEQT','QQQ','SHV')),
+    shares NUMERIC NOT NULL,
+    price NUMERIC NOT NULL,
+    source TEXT NOT NULL DEFAULT 'HELOC' CHECK (source IN ('HELOC','TERM','CASH')),
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+  );
+  ALTER TABLE cashflow_purchases ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY "allow_all" ON cashflow_purchases FOR ALL USING (true) WITH CHECK (true);
+
+  -- v13 升级（已有旧版表时执行一次）
+  ALTER TABLE cashflow_params
+    ADD COLUMN IF NOT EXISTS term_start_month TEXT DEFAULT '2026-06',
+    ADD COLUMN IF NOT EXISTS xeqt_dps NUMERIC DEFAULT 0.063,
+    ADD COLUMN IF NOT EXISTS qqq_dps  NUMERIC DEFAULT 0.25,
+    ADD COLUMN IF NOT EXISTS shv_dps  NUMERIC DEFAULT 0.188,
+    ADD COLUMN IF NOT EXISTS rent_start_month TEXT DEFAULT '';
+  ══════════════════════════════════════════════
+-->
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -14,213 +79,353 @@
   --r:#781c1c;--rb:#fce8e8;--rl:#b83030;
   --o:#784c10;--ob:#fdf2dc;--ol:#b07820;
   --b:#183870;--bb:#e4eef8;--bl:#2858a8;
+  --pu:#4a2880;--pub:#f0e8fc;--pul:#7040c0;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--ink);font-family:'Outfit',sans-serif;min-height:100vh;font-size:13px;
-  /* prevent iOS font zoom */
-  -webkit-text-size-adjust:100%;}
+body{background:var(--bg);color:var(--ink);font-family:'Outfit',sans-serif;min-height:100vh;font-size:13px;-webkit-text-size-adjust:100%;}
+
+/* ── Loading ── */
+#loading{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+.spinner{width:34px;height:34px;border:3px solid var(--bdr);border-top-color:var(--bl);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading p{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink3);}
+
+/* ── Toast ── */
+.toasts{position:fixed;top:14px;right:14px;z-index:1000;display:flex;flex-direction:column;gap:6px;pointer-events:none;}
+.toast{background:var(--s1);border:1px solid var(--bdr);border-radius:6px;padding:10px 14px;box-shadow:0 4px 16px rgba(0,0,0,.12);font-size:12px;display:flex;align-items:center;gap:7px;animation:tslide .2s ease;min-width:210px;max-width:340px;pointer-events:auto;}
+.toast.ok{border-left:3px solid var(--gl);}.toast.err{border-left:3px solid var(--rl);}
+@keyframes tslide{from{transform:translateX(110%);opacity:0}to{transform:none;opacity:1}}
+
+/* ── Modal ── */
+.overlay{position:fixed;inset:0;background:rgba(26,24,16,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);}
+.overlay.hidden{display:none!important;}
+.modal{background:var(--s1);border-radius:12px;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.22);}
+.modal.sm{max-width:400px;}
+.mhd{padding:20px 22px 0;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.mtitle{font-family:'Instrument Serif',serif;font-size:19px;font-weight:400;}
+.mbody{padding:0 22px;}
+.mfoot{padding:16px 22px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--bdr);margin-top:16px;}
+.del-msg{font-size:12px;color:var(--ink2);margin-bottom:9px;}
+.del-tgt{padding:9px 11px;background:var(--rb);border:1px solid #f5b5b5;border-radius:6px;font-size:12px;color:var(--r);word-break:break-word;}
+.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
+.fg label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);}
+.fg input,.fg select,.fg textarea{padding:8px 10px;border:1.5px solid var(--bdr);border-radius:5px;font-family:inherit;font-size:14px;color:var(--ink);background:var(--s1);outline:none;transition:border-color .15s;width:100%;-webkit-appearance:none;appearance:none;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--bl);}
+.fg textarea{resize:vertical;min-height:56px;font-size:13px;}
+.fg-cost{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ol);margin-top:2px;min-height:16px;}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:.15s;border:1px solid transparent;white-space:nowrap;line-height:1;}
+.btn-primary{background:var(--ink);color:var(--bg);}
+.btn-primary:hover{background:#333;}
+.btn-outline{background:var(--s1);color:var(--ink2);border-color:var(--bdr);}
+.btn-outline:hover{background:var(--s2);border-color:var(--bdr2);}
+.btn-ghost{background:transparent;color:var(--ink3);border-color:transparent;}
+.btn-ghost:hover{background:var(--s2);color:var(--ink);}
+.btn-danger{background:var(--rb);color:var(--r);}
+.btn-danger:hover{background:#f9caca;}
+.btn-sm{padding:5px 10px;font-size:11px;}
+.btn-xs{padding:3px 8px;font-size:10px;}
+.btn-icon{padding:6px 7px;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
 
 /* ── Topbar ── */
-.topbar{background:var(--ink);color:#ede9e2;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-.topbar h1{font-family:'Instrument Serif',serif;font-size:clamp(16px,4vw,22px);font-weight:400;
-  white-space:normal;/* allow wrap on mobile */line-height:1.2;}
+.topbar{background:var(--ink);color:#ede9e2;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.topbar-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.topbar h1{font-family:'Instrument Serif',serif;font-size:clamp(15px,3.5vw,21px);font-weight:400;line-height:1.2;}
 .topbar h1 em{color:#b8f04a;font-style:italic;}
-.top-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:#888;line-height:1.6;
-  width:100%;margin-top:2px;word-break:break-word;}
-.version-badge{font-family:'JetBrains Mono',monospace;font-size:9px;background:#b8f04a;color:#1a1810;
-  padding:2px 7px;border-radius:3px;font-weight:600;flex-shrink:0;}
+.version-badge{font-family:'JetBrains Mono',monospace;font-size:9px;background:#b8f04a;color:#1a1810;padding:2px 7px;border-radius:3px;font-weight:600;flex-shrink:0;}
+.top-sub{font-family:'JetBrains Mono',monospace;font-size:8px;color:#888;margin-top:1px;word-break:break-word;}
+.sync-badge{font-family:'JetBrains Mono',monospace;font-size:9px;color:#aaa;flex-shrink:0;}
 
-/* ── Layout: sidebar left on desktop, stacked on mobile ── */
-.layout{display:grid;grid-template-columns:262px 1fr;min-height:calc(100vh - 56px);align-items:start;}
-@media(max-width:680px){
-  .layout{grid-template-columns:1fr;min-height:unset;}
-}
+/* ── Layout ── */
+.layout{display:grid;grid-template-columns:270px 1fr;min-height:calc(100vh - 52px);align-items:start;}
+@media(max-width:720px){.layout{grid-template-columns:1fr;min-height:unset;}}
 
 /* ── Sidebar ── */
-.side{background:var(--s1);border-right:1px solid var(--bdr);padding:14px 12px;
-  /* desktop: sticky panel */
-  position:sticky;top:0;height:calc(100vh - 56px);overflow-y:auto;}
-@media(max-width:680px){
-  .side{
-    position:static;height:auto;overflow-y:visible;
-    border-right:none;border-bottom:1px solid var(--bdr);
-    padding:12px 14px;
-  }
-}
-
-/* Collapsible sidebar on mobile */
-.side-toggle{display:none;width:100%;background:var(--s2);border:1px solid var(--bdr);
-  border-radius:6px;padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:10px;
-  letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);cursor:pointer;
-  text-align:left;margin-bottom:10px;appearance:none;-webkit-appearance:none;}
+.side{background:var(--s1);border-right:1px solid var(--bdr);padding:12px;position:sticky;top:0;height:calc(100vh - 52px);overflow-y:auto;}
+@media(max-width:720px){.side{position:static;height:auto;overflow-y:visible;border-right:none;border-bottom:1px solid var(--bdr);padding:12px 14px;}}
+.side-toggle{display:none;width:100%;background:var(--s2);border:1px solid var(--bdr);border-radius:5px;padding:9px 13px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);cursor:pointer;text-align:left;margin-bottom:9px;-webkit-appearance:none;appearance:none;}
 .side-toggle::after{content:'▼';float:right;transition:transform .2s;}
 .side-toggle.open::after{transform:rotate(180deg);}
-@media(max-width:680px){
-  .side-toggle{display:block;}
-  .side-body{display:none;}
-  .side-body.open{display:block;}
-}
-
-.sec{margin-bottom:18px;}
-.sec-ttl{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.2em;text-transform:uppercase;
-  color:var(--ink3);padding-bottom:5px;border-bottom:1px solid var(--bdr);margin-bottom:9px;}
-.sr{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;}
-.sl{font-size:11px;color:var(--ink2);}
-.sv{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;}
-.sv.g{color:var(--gl);}.sv.r{color:var(--rl);}.sv.b{color:var(--bl);}.sv.o{color:var(--ol);}
-
-/* Input groups — key fix: font-size>=16px to prevent iOS zoom */
-.ig{background:var(--s2);border-radius:6px;padding:9px 10px;margin-bottom:7px;}
-.ig-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:5px;}
-.ig-row{display:flex;align-items:center;gap:4px;}
+@media(max-width:720px){.side-toggle{display:block;}.side-body{display:none;}.side-body.open{display:block;}}
+.sec{margin-bottom:15px;}
+.sec-ttl{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);padding-bottom:5px;border-bottom:1px solid var(--bdr);margin-bottom:8px;}
+.ig{background:var(--s2);border-radius:5px;padding:8px 9px;margin-bottom:6px;}
+.ig-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:4px;}
+.ig-row{display:flex;align-items:center;gap:3px;}
 .ig-pfx{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink3);flex-shrink:0;}
-.ig input[type=number]{
-  background:var(--s1);border:1px solid var(--bdr);border-radius:4px;padding:6px 7px;
-  font-family:'JetBrains Mono',monospace;
-  font-size:16px;/* ≥16px = no iOS auto-zoom */
-  font-weight:600;color:var(--ink);width:100%;outline:none;transition:border-color .15s;
-  -webkit-appearance:none;appearance:none;}
-.ig input[type=month]{
-  background:var(--s1);border:1px solid var(--bdr);border-radius:4px;padding:6px 7px;
-  font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;color:var(--ink);
-  width:100%;outline:none;transition:border-color .15s;
-  /* iOS Safari month picker */
-  -webkit-appearance:none;appearance:none;}
+.ig input{background:var(--s1);border:1px solid var(--bdr);border-radius:4px;padding:5px 7px;font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;color:var(--ink);width:100%;outline:none;transition:border-color .15s;-webkit-appearance:none;appearance:none;}
+.ig input[type=month]{font-family:'JetBrains Mono',monospace;}
 .ig input:focus{border-color:var(--bl);}
-.ig-hint{font-size:9px;color:var(--ink3);margin-top:3px;}
+.ig-hint{font-size:9px;color:var(--ink3);margin-top:2px;}
 .ig-derived{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ol);margin-top:2px;}
-
-/* two-col mini inputs */
-.ig-2col{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:7px;}
-.ig-sm{background:var(--s2);border-radius:6px;padding:7px 9px;min-width:0;overflow:hidden;}
+.ig-2col{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px;}
+.ig-sm{background:var(--s2);border-radius:5px;padding:7px 8px;min-width:0;}
 .ig-sm .ig-lbl{font-size:8.5px;}
-.ig-sm .ig-row{min-width:0;}
-.ig-sm input[type=number]{
-  background:var(--s1);border:1px solid var(--bdr);border-radius:4px;
-  font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--ink);outline:none;
-  font-size:16px;/* ≥16px to prevent iOS zoom */
-  padding:4px 5px;width:100%;min-width:0;
-  -webkit-appearance:none;appearance:none;}
-.ig-sm input[type=number]:focus{border-color:var(--bl);}
-
-/* Summary mini-kpis */
-.mk{background:var(--s2);border-radius:5px;padding:9px 11px;margin-top:6px;}
+.ig-sm input{background:var(--s1);border:1px solid var(--bdr);border-radius:4px;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--ink);outline:none;font-size:16px;padding:4px 5px;width:100%;-webkit-appearance:none;appearance:none;}
+.ig-sm input:focus{border-color:var(--bl);}
+.mk{background:var(--s2);border-radius:5px;padding:8px 10px;margin-top:5px;}
 .mk-lbl{font-size:9px;color:var(--ink3);margin-bottom:2px;}
-.mk-val{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;}
+.mk-val{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;}
 .mk-val.g{color:var(--g);}.mk-val.r{color:var(--r);}.mk-val.b{color:var(--b);}.mk-val.o{color:var(--o);}
+.save-row{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.save-ind{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink3);}
 
 /* ── Content ── */
-.content{padding:14px;overflow:hidden;min-width:0;}
-
-/* KPI strip */
-.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:8px;margin-bottom:14px;}
-@media(max-width:680px){.kpis{grid-template-columns:1fr 1fr;}}
-@media(max-width:380px){.kpis{grid-template-columns:1fr;}}
-.kc{background:var(--s1);border:1px solid var(--bdr);border-radius:7px;padding:11px 12px;
-  position:relative;overflow:hidden;}
+.content{padding:12px;min-width:0;overflow:hidden;}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:7px;margin-bottom:13px;}
+@media(max-width:720px){.kpis{grid-template-columns:1fr 1fr;}}
+.kc{background:var(--s1);border:1px solid var(--bdr);border-radius:7px;padding:10px 11px;position:relative;overflow:hidden;}
 .kc::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
 .kc.g::before{background:var(--gl);}.kc.r::before{background:var(--rl);}
-.kc.b::before{background:var(--bl);}.kc.o::before{background:var(--ol);}
-.kl{font-size:9px;color:var(--ink3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;}
-.kv{font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:600;line-height:1;}
-.kc.g .kv{color:var(--g);}.kc.r .kv{color:var(--r);}
-.kc.b .kv{color:var(--b);}.kc.o .kv{color:var(--o);}
+.kc.b::before{background:var(--bl);}.kc.o::before{background:var(--ol);}.kc.pu::before{background:var(--pul);}
+.kl{font-size:9px;color:var(--ink3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;}
+.kv{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;line-height:1;}
+.kc.g .kv{color:var(--g);}.kc.r .kv{color:var(--r);}.kc.b .kv{color:var(--b);}.kc.o .kv{color:var(--o);}.kc.pu .kv{color:var(--pul);}
 .ks{font-size:9px;color:var(--ink3);margin-top:3px;}
 
-/* Year tabs */
-.ytabs{display:flex;gap:5px;margin-bottom:11px;flex-wrap:wrap;}
-.yb{font-family:'JetBrains Mono',monospace;font-size:10px;padding:6px 12px;border-radius:3px;
-  border:1px solid var(--bdr);background:var(--s1);color:var(--ink2);cursor:pointer;transition:.15s;
-  /* touch-friendly tap target */
-  min-height:36px;display:inline-flex;align-items:center;}
+/* ── Purchase Panel ── */
+.pcard{background:var(--s1);border:1px solid var(--bdr);border-radius:7px;overflow:hidden;margin-bottom:13px;}
+.pcard-hdr{background:var(--s2);padding:8px 12px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+.pcard-ttl{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);}
+.pcard-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.pcard-empty{padding:32px;text-align:center;color:var(--ink3);font-size:12px;}
+.pcard-foot{padding:8px 12px;border-top:1px solid var(--bdr);background:var(--s2);display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
+.pf-item{font-size:11px;color:var(--ink2);}
+.pf-val{font-family:'JetBrains Mono',monospace;font-weight:600;}
+.pu-tbl{width:100%;border-collapse:collapse;min-width:580px;}
+.pu-tbl th{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);padding:6px 10px;text-align:left;border-bottom:1px solid var(--bdr);background:var(--s2);white-space:nowrap;}
+.pu-tbl th:not(:first-child){text-align:right;}
+.pu-tbl td{font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 10px;border-bottom:1px solid rgba(200,192,176,.3);white-space:nowrap;vertical-align:middle;}
+.pu-tbl td:first-child{font-family:'Outfit',sans-serif;font-size:11px;color:var(--ink2);text-align:left;}
+.pu-tbl td:not(:first-child):not(:last-child){text-align:right;}
+.pu-tbl td:last-child{text-align:right;}
+.pu-tbl tr:last-child td{border-bottom:none;}
+.pu-tbl tr:hover td{background:rgba(0,0,0,.022);}
+.ticker-badge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.t-XEI{background:var(--bb);color:var(--bl);}
+.t-XEQT{background:var(--gb);color:var(--gl);}
+.t-QQQ{background:var(--pub);color:var(--pul);}
+.t-SHV{background:var(--ob);color:var(--ol);}
+.src-badge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:600;background:var(--s2);color:var(--ink3);}
+.src-HELOC{background:var(--rb);color:var(--rl);}
+.src-TERM{background:var(--ob);color:var(--ol);}
+.src-CASH{background:var(--gb);color:var(--gl);}
+
+/* ── Year tabs ── */
+.ytabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap;}
+.yb{font-family:'JetBrains Mono',monospace;font-size:10px;padding:5px 11px;border-radius:3px;border:1px solid var(--bdr);background:var(--s1);color:var(--ink2);cursor:pointer;transition:.15s;min-height:32px;display:inline-flex;align-items:center;}
 .yb.on{background:var(--ink);color:var(--bg);border-color:var(--ink);}
 .yb:hover:not(.on){border-color:var(--ink2);}
 
-/* Table wrapper — explicit horizontal scroll on mobile */
+/* ── Cashflow table ── */
 .twrap{background:var(--s1);border:1px solid var(--bdr);border-radius:7px;overflow:hidden;}
-.thdr{background:var(--s2);padding:8px 13px;border-bottom:1px solid var(--bdr);
-  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;}
+.thdr{background:var(--s2);padding:7px 12px;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px;}
 .th-t{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);}
-.leg{display:flex;gap:8px;flex-wrap:wrap;}
+.leg{display:flex;gap:7px;flex-wrap:wrap;}
 .li{display:flex;align-items:center;gap:3px;font-size:9px;color:var(--ink3);}
-.ld{width:7px;height:7px;border-radius:1.5px;}
-/* Scroll container with momentum scrolling on iOS */
-.tscroll{
-  overflow-x:auto;overflow-y:auto;max-height:440px;
-  -webkit-overflow-scrolling:touch;/* momentum scroll on iOS */}
+.ld{width:6px;height:6px;border-radius:1.5px;}
+.tscroll{overflow-x:auto;overflow-y:auto;max-height:460px;-webkit-overflow-scrolling:touch;}
 table{width:100%;border-collapse:collapse;}
-th{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.07em;text-transform:uppercase;
-  color:var(--ink3);padding:7px 8px;text-align:right;border-bottom:1px solid var(--bdr);
-  white-space:nowrap;background:var(--s2);font-weight:500;position:sticky;top:0;z-index:2;}
-th:first-child{text-align:left;min-width:88px;}
-td{font-family:'JetBrains Mono',monospace;font-size:10.5px;padding:5.5px 8px;text-align:right;
-  border-bottom:1px solid rgba(200,192,176,.3);white-space:nowrap;}
+th{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);padding:6px 8px;text-align:right;border-bottom:1px solid var(--bdr);white-space:nowrap;background:var(--s2);font-weight:500;position:sticky;top:0;z-index:2;}
+th:first-child{text-align:left;min-width:82px;}
+td{font-family:'JetBrains Mono',monospace;font-size:10px;padding:5px 8px;text-align:right;border-bottom:1px solid rgba(200,192,176,.3);white-space:nowrap;}
 td:first-child{text-align:left;font-family:'Outfit',sans-serif;font-size:11px;font-weight:500;color:var(--ink2);}
-tr:hover td{background:rgba(0,0,0,.025);}
+tr:hover td{background:rgba(0,0,0,.022);}
 tr.tax-row td{background:var(--ob);}
 tr.tax-row td:first-child{color:var(--o);}
+tr.buy-row td{background:rgba(40,88,168,.04);}
 tr.yr-row td{background:var(--s2);font-weight:600;border-top:1px solid var(--bdr2);}
 tr.yr-row td:first-child{font-family:'JetBrains Mono',monospace;color:var(--ink);font-size:11px;}
-.cg{color:var(--gl);}.cr{color:var(--rl);}.co{color:var(--ol);}.cb{color:var(--bl);}.ci{color:var(--ink);}
+.cg{color:var(--gl);}.cr{color:var(--rl);}.co{color:var(--ol);}.cb{color:var(--bl);}.cpu{color:var(--pul);}.ci{color:var(--ink);}
 
-/* Tax panel */
-#tax-panel{display:none;background:var(--ob);border:1px solid var(--ol);border-radius:7px;
-  padding:13px 15px;margin-top:11px;}
-.tp-title{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;
-  color:var(--o);margin-bottom:11px;font-weight:600;}
-.tp-yr{font-size:12px;color:var(--ink);margin-bottom:9px;padding-bottom:7px;
-  border-bottom:1px solid rgba(176,120,32,.3);font-weight:500;}
-.tp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:9px;margin-bottom:12px;}
+/* ── Tax panel ── */
+#tax-panel{display:none;background:var(--ob);border:1px solid var(--ol);border-radius:7px;padding:12px 14px;margin-top:11px;}
+.tp-title{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--o);margin-bottom:10px;font-weight:600;}
+.tp-yr{font-size:12px;color:var(--ink);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(176,120,32,.3);font-weight:500;}
+.tp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-bottom:10px;}
 @media(max-width:480px){.tp-grid{grid-template-columns:1fr;}}
-.tp-block{background:var(--s1);border:1px solid var(--bdr);border-radius:5px;padding:9px 11px;}
+.tp-block{background:var(--s1);border:1px solid var(--bdr);border-radius:5px;padding:8px 10px;}
 .tp-block.shield{border-color:var(--gl);background:var(--gb);}
 .tp-block.total{border-color:var(--ol);background:var(--ob);}
-.tp-bl{font-size:10px;font-weight:700;color:var(--ink2);margin-bottom:6px;}
-.tp-row{display:flex;justify-content:space-between;padding:2.5px 0;font-size:10px;flex-wrap:wrap;gap:2px;}
+.tp-bl{font-size:10px;font-weight:700;color:var(--ink2);margin-bottom:5px;}
+.tp-row{display:flex;justify-content:space-between;padding:2px 0;font-size:10px;flex-wrap:wrap;gap:2px;}
 .tp-row span:first-child{color:var(--ink3);}
 .tp-row span:last-child{font-family:'JetBrains Mono',monospace;}
-.tp-sub{border-top:1px dashed var(--bdr);margin-top:3px;padding-top:4px;font-weight:700;}
+.tp-sub{border-top:1px dashed var(--bdr);margin-top:3px;padding-top:3px;font-weight:700;}
 .tpr{color:var(--rl);}.tpg{color:var(--gl);}
 
-/* Chart */
-.chart-box{background:var(--s1);border:1px solid var(--bdr);border-radius:7px;padding:13px;margin-top:13px;}
-.chart-ttl{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--ink2);margin-bottom:11px;}
-.chart-wrap{display:flex;align-items:stretch;gap:8px;}
-.yaxis{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;
-  padding-bottom:16px;min-width:40px;}
+/* ── Chart ── */
+.chart-box{background:var(--s1);border:1px solid var(--bdr);border-radius:7px;padding:12px;margin-top:12px;}
+.chart-ttl{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink2);margin-bottom:10px;}
+.chart-wrap{display:flex;align-items:stretch;gap:7px;}
+.yaxis{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;padding-bottom:15px;min-width:38px;}
 .ya-l{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--ink3);}
 .chart-right{flex:1;min-width:0;overflow:hidden;}
-.bars{display:flex;align-items:flex-end;gap:1px;height:100px;border-bottom:1.5px solid var(--bdr2);position:relative;}
-.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0;gap:0;}
+.bars{display:flex;align-items:flex-end;gap:1px;height:90px;border-bottom:1.5px solid var(--bdr2);position:relative;}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0;height:90px;position:relative;}
 .bpos{border-radius:2px 2px 0 0;width:80%;min-height:1px;background:var(--gl);}
 .bneg{border-radius:0 0 2px 2px;width:80%;min-height:1px;background:var(--rl);}
-.bxei{position:absolute;bottom:0;left:0;right:0;background:var(--bl);opacity:.15;border-radius:2px 2px 0 0;}
+.bpv{position:absolute;bottom:0;left:0;right:0;background:var(--bl);opacity:.12;border-radius:2px 2px 0 0;}
 .xlbls{display:flex;gap:1px;margin-top:3px;}
-.xl{flex:1;text-align:center;font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--ink3);
-  min-width:0;overflow:hidden;}
-.chart-leg{display:flex;gap:10px;margin-top:7px;flex-wrap:wrap;}
+.xl{flex:1;text-align:center;font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--ink3);min-width:0;overflow:hidden;}
+.chart-leg{display:flex;gap:9px;margin-top:6px;flex-wrap:wrap;}
 .cli{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--ink2);}
-.cld{width:10px;height:6px;border-radius:1px;}
-
-/* Note */
-.note{background:var(--ob);border:1px solid var(--ol);border-radius:6px;padding:9px 13px;
-  font-size:11px;color:var(--o);line-height:1.7;margin-top:13px;word-break:break-word;}
+.cld{width:9px;height:5px;border-radius:1px;}
+.note{background:var(--ob);border:1px solid var(--ol);border-radius:6px;padding:8px 12px;font-size:11px;color:var(--o);line-height:1.7;margin-top:12px;word-break:break-word;}
 .note strong{color:var(--ink);}
-
-/* Divider label inside sidebar */
-.ig-divider{font-size:8px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--ink3);margin:10px 0 5px;opacity:.6;}
+/* ── Tax Summary Panel ── */
+.tsec{background:var(--s1);border:1px solid var(--bdr);border-radius:7px;overflow:hidden;margin-top:12px;}
+.tsec-hdr{background:var(--ob);padding:9px 14px;border-bottom:1px solid rgba(176,120,32,.3);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px;}
+.tsec-title{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--o);font-weight:600;}
+.tsec-meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ol);}
+.tsec-kpis{display:flex;border-bottom:1px solid var(--bdr);flex-wrap:wrap;}
+.tskpi{flex:1;min-width:110px;padding:9px 12px;border-right:1px solid var(--bdr);}
+.tskpi:last-child{border-right:none;}
+.tskl{font-size:9px;color:var(--ink3);margin-bottom:2px;}
+.tskv{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;}
+.tskv.r{color:var(--r);}.tskv.g{color:var(--g);}.tskv.o{color:var(--o);}
+.tsec-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.ts-tbl{width:100%;border-collapse:collapse;min-width:820px;}
+.ts-tbl th{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);padding:7px 10px;text-align:right;border-bottom:1px solid var(--bdr);background:var(--s2);white-space:nowrap;font-weight:500;line-height:1.5;}
+.ts-tbl th:first-child{text-align:left;min-width:52px;}
+.ts-tbl th .sub{display:block;font-size:7px;color:var(--ink3);opacity:.65;text-transform:none;letter-spacing:0;}
+.ts-tbl td{font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 10px;text-align:right;border-bottom:1px solid rgba(200,192,176,.3);}
+.ts-tbl td:first-child{text-align:left;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;color:var(--ink);}
+.ts-tbl tr:hover td{background:rgba(0,0,0,.022);}
+.ts-tot td{background:var(--s2);font-weight:700;border-top:1px solid var(--bdr2);}
+.tsr{color:var(--rl);}.tsg{color:var(--gl);}.tso{color:var(--ol);}
+.tsec-legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));border-top:1px solid var(--bdr);}
+.ts-leg-item{padding:9px 14px;border-right:1px solid var(--bdr);font-size:10px;color:var(--ink3);line-height:1.7;}
+.ts-leg-item:last-child{border-right:none;}
+.ts-leg-item strong{color:var(--ink2);display:block;margin-bottom:1px;}
+/* Detailed year cards */
+.ts-detail{padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px;}
+.ts-yr-card{background:var(--s1);border:1px solid var(--bdr);border-radius:7px;overflow:hidden;display:flex;flex-direction:column;}
+.ts-yr-hdr{display:flex;justify-content:space-between;align-items:center;padding:8px 13px;background:var(--s2);border-bottom:1px solid var(--bdr2);}
+.ts-yr-title{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--ink);}
+.ts-yr-net{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;}
+.ts-yr-net.pay{color:var(--rl);}.ts-yr-net.refund{color:var(--gl);}
+.ts-sections{padding:10px 12px;flex:1;}
+.ts-section{margin-bottom:10px;padding-bottom:10px;border-bottom:1px dashed var(--bdr);}
+.ts-section:last-child{border-bottom:none;margin-bottom:4px;padding-bottom:0;}
+.ts-sec-hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+.ts-sec-label{font-size:11px;font-weight:600;color:var(--ink2);}
+.ts-sec-amt{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;margin-left:6px;}
+.ts-sec-amt.pay{color:var(--rl);}.ts-sec-amt.shield{color:var(--gl);}.ts-sec-amt.zero{color:var(--ink3);}
+.ts-calc{background:var(--s2);border-radius:5px;padding:7px 10px;}
+.ts-cr{display:flex;justify-content:space-between;align-items:baseline;font-size:10px;padding:1.5px 0;}
+.ts-cr span:first-child{color:var(--ink3);flex:1;}
+.ts-cr span:last-child{font-family:'JetBrains Mono',monospace;color:var(--ink2);flex-shrink:0;margin-left:8px;}
+.ts-cr.sub{border-top:1px dashed var(--bdr2);margin-top:3px;padding-top:3px;}
+.ts-cr.sub span:first-child{color:var(--ink2);font-weight:600;}
+.ts-cr.sub span:last-child{color:var(--ink);font-weight:600;}
+.ts-cr.res span:first-child{color:var(--ink2);font-weight:600;}
+.ts-cr.res span:last-child{color:var(--rl);font-weight:700;}
+.ts-cr.res.shield span:last-child{color:var(--gl);font-weight:700;}
+.ts-yr-foot{display:flex;justify-content:space-between;align-items:center;padding:8px 13px;background:var(--ob);border-top:1px solid rgba(176,120,32,.3);}
+.ts-yr-foot-lbl{font-size:10px;color:var(--o);line-height:1.5;}
+.ts-yr-foot-val{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;}
+.ts-yr-foot-val.pay{color:var(--r);}.ts-yr-foot-val.refund{color:var(--g);}
+.hidden{display:none!important;}
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div>
-    <h1>现金流推演 <em>v9</em> · HELOC × XEI</h1>
-    <div class="top-sub" id="top-sub">…</div>
+<div id="loading">
+  <div class="spinner"></div>
+  <p>正在连接 Supabase…</p>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<!-- ── 建仓记录 Modal ── -->
+<div class="overlay hidden" id="pu-overlay">
+  <div class="modal">
+    <div class="mhd">
+      <span class="mtitle" id="pu-modal-title">添加建仓记录</span>
+      <button class="btn btn-ghost btn-icon" onclick="closePuModal()">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="fg2">
+        <div class="fg">
+          <label for="pf-month">购入月份 <span style="color:var(--rl)">*</span></label>
+          <input id="pf-month" type="month" oninput="calcPuCost()">
+        </div>
+        <div class="fg">
+          <label for="pf-ticker">股票代码 <span style="color:var(--rl)">*</span></label>
+          <select id="pf-ticker">
+            <option value="XEI">XEI — 加拿大股息</option>
+            <option value="XEQT">XEQT — 全球股票</option>
+            <option value="QQQ">QQQ — 纳斯达克100</option>
+            <option value="SHV">SHV — 短期美债</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg2">
+        <div class="fg">
+          <label for="pf-shares">购入份额 <span style="color:var(--rl)">*</span></label>
+          <input id="pf-shares" type="number" min="0.001" step="1" placeholder="1000" oninput="calcPuCost()">
+        </div>
+        <div class="fg">
+          <label for="pf-price">买入价格 ($)</label>
+          <input id="pf-price" type="number" min="0.01" step="0.01" placeholder="37.00" oninput="calcPuCost()">
+        </div>
+      </div>
+      <div class="fg">
+        <label for="pf-source">资金来源</label>
+        <select id="pf-source">
+          <option value="HELOC">HELOC（循环信贷）</option>
+          <option value="TERM">TERM（定期贷款）</option>
+          <option value="CASH">CASH（自有现金）</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>购入成本（自动计算）</label>
+        <div class="fg-cost" id="pu-cost-display">—</div>
+      </div>
+      <div class="fg">
+        <label for="pf-notes">备注（可选）</label>
+        <textarea id="pf-notes" placeholder="例：分批建仓第1期"></textarea>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-outline" onclick="closePuModal()">取消</button>
+      <button class="btn btn-primary" onclick="savePurchase()">保存记录</button>
+    </div>
   </div>
-  <span class="version-badge">v9 · 60M</span>
+</div>
+
+<!-- ── 删除确认 Modal ── -->
+<div class="overlay hidden" id="del-overlay">
+  <div class="modal sm">
+    <div class="mhd">
+      <span class="mtitle">删除建仓记录</span>
+      <button class="btn btn-ghost btn-icon" onclick="cancelDel()">✕</button>
+    </div>
+    <div class="mbody">
+      <p class="del-msg">确认删除此记录？删除后将重新计算现金流，无法撤销。</p>
+      <div class="del-tgt" id="del-tgt">—</div>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-outline" onclick="cancelDel()">取消</button>
+      <button class="btn btn-danger" onclick="confirmDel()">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Header ── -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div>
+      <h1>现金流推演 <em>v13</em> · 多品种建仓</h1>
+      <div class="top-sub" id="top-sub">…</div>
+    </div>
+    <span class="version-badge">v13 · 60M · Supabase</span>
+  </div>
+  <span class="sync-badge" id="sync-badge">—</span>
 </div>
 
 <div class="layout">
@@ -230,32 +435,36 @@ tr.yr-row td:first-child{font-family:'JetBrains Mono',monospace;color:var(--ink)
 <button class="side-toggle" id="side-toggle" onclick="toggleSide()">参数设置 ⚙</button>
 <div class="side-body" id="side-body">
 
-  <!-- ① 起始日期 & 月租金 -->
   <div class="sec">
     <div class="sec-ttl">基础设置</div>
-
     <div class="ig">
       <div class="ig-lbl">推演起始月份</div>
       <div class="ig-row"><input id="v-start" type="month" value="2026-10"></div>
-      <div class="ig-hint">模拟从该月第1日开始，共60个月</div>
+      <div class="ig-hint">共60个月</div>
     </div>
-
     <div class="ig">
       <div class="ig-lbl">税后月薪</div>
       <div class="ig-row"><span class="ig-pfx">$</span><input id="v-salary" type="number" value="4700" min="0" step="100"></div>
-      <div class="ig-hint">税后到手，每月固定</div>
     </div>
-
+    <div class="ig-2col">
+      <div class="ig-sm">
+        <div class="ig-lbl">月租金收入</div>
+        <div class="ig-row"><span class="ig-pfx" style="font-size:10px">$</span><input id="v-rent" type="number" value="3200" min="0" step="100"></div>
+      </div>
+      <div class="ig-sm">
+        <div class="ig-lbl">每年其他收入</div>
+        <div class="ig-row"><span class="ig-pfx" style="font-size:10px">$</span><input id="v-other-annual" type="number" value="0" min="0" step="500"></div>
+      </div>
+    </div>
     <div class="ig">
-      <div class="ig-lbl">月租金收入</div>
-      <div class="ig-row"><span class="ig-pfx">$</span><input id="v-rent" type="number" value="3200" min="0" step="100"></div>
+      <div class="ig-lbl">租金开始月份（租客入住）</div>
+      <div class="ig-row"><input id="v-rent-start" type="month" value=""></div>
+      <div class="ig-hint">空白 = 与推演同步；晚于起始月则前期租金收入为 $0</div>
     </div>
   </div>
 
-  <!-- ② 房产固定支出 -->
   <div class="sec">
     <div class="sec-ttl">房产固定支出</div>
-
     <div class="ig-2col">
       <div class="ig-sm">
         <div class="ig-lbl">保险/月</div>
@@ -266,7 +475,6 @@ tr.yr-row td:first-child{font-family:'JetBrains Mono',monospace;color:var(--ink)
         <div class="ig-row"><span class="ig-pfx" style="font-size:10px">$</span><input id="v-maint" type="number" value="300" min="0" step="10"></div>
       </div>
     </div>
-
     <div class="ig">
       <div class="ig-lbl">房产税/年（6月+12月各半）</div>
       <div class="ig-row"><span class="ig-pfx">$</span><input id="v-ptax" type="number" value="6400" min="0" step="100"></div>
@@ -274,77 +482,6 @@ tr.yr-row td:first-child{font-family:'JetBrains Mono',monospace;color:var(--ink)
     </div>
   </div>
 
-  <!-- ③ XEI 参数 -->
-  <div class="sec">
-    <div class="sec-ttl">XEI 参数</div>
-
-    <div class="ig">
-      <div class="ig-lbl">XEI 期初价格</div>
-      <div class="ig-row"><span class="ig-pfx">$</span><input id="v-p0" type="number" value="37" min="0.01" step="0.5"></div>
-      <div class="ig-hint">起始月第1日买入价</div>
-    </div>
-
-    <div class="ig">
-      <div class="ig-lbl">期初 XEI 持股数</div>
-      <div class="ig-row"><input id="v-shares" type="number" value="0" min="0" step="100"><span class="ig-pfx">股</span></div>
-      <div class="ig-derived" id="d-initval">初始市值 ≈ $0</div>
-    </div>
-
-    <div class="ig">
-      <div class="ig-lbl">XEI 月 DPS（每股股息）</div>
-      <div class="ig-row"><span class="ig-pfx">$</span><input id="v-dps" type="number" value="0.11" min="0" step="0.005"></div>
-    </div>
-
-    <div class="ig">
-      <div class="ig-lbl">XEI 月价格涨幅</div>
-      <div class="ig-row"><input id="v-mg" type="number" value="0.5" min="-5" max="20" step="0.1"><span class="ig-pfx">%</span></div>
-      <div class="ig-derived" id="d-mg">年化 ≈ +6.2%</div>
-    </div>
-  </div>
-
-  <!-- ④ HELOC -->
-  <div class="sec">
-    <div class="sec-ttl">HELOC 参数</div>
-
-    <div class="ig">
-      <div class="ig-lbl">HELOC 借款总额</div>
-      <div class="ig-row"><span class="ig-pfx">$</span><input id="v-heloc" type="number" value="300000" min="0" step="10000"></div>
-      <div class="ig-hint">HELOC月建仓 = 借款 ÷ 7（7个月分批）</div>
-      <div class="ig-derived" id="d-dca">月建仓 $42,857</div>
-    </div>
-
-    <div class="ig">
-      <div class="ig-lbl">HELOC 名义利率</div>
-      <div class="ig-row"><input id="v-rate" type="number" value="4.95" min="0.5" max="15" step="0.05"><span class="ig-pfx">%</span></div>
-      <div class="ig-derived" id="d-ear">EAR ≈ 5.074%</div>
-    </div>
-  </div>
-
-  <!-- ⑤ Term贷款 -->
-  <div class="sec">
-    <div class="sec-ttl">Term 贷款参数（投资用）</div>
-    <div class="ig-hint" style="margin-bottom:8px;color:var(--ink3);font-size:10px">加拿大惯例：半年复利（Semi-annual compounding），利率转换为月等效利率后计算等额月供</div>
-
-    <div class="ig">
-      <div class="ig-lbl">Term 贷款金额</div>
-      <div class="ig-row"><span class="ig-pfx">$</span><input id="v-term-amt" type="number" value="0" min="0" step="10000"></div>
-      <div class="ig-hint">首月第1日一次性全额买入XEI（0 = 不使用）</div>
-    </div>
-
-    <div class="ig">
-      <div class="ig-lbl">Term 贷款名义利率</div>
-      <div class="ig-row"><input id="v-term-rate" type="number" value="5.5" min="0.5" max="15" step="0.05"><span class="ig-pfx">%</span></div>
-      <div class="ig-derived" id="d-term-rate">月等效利率 ≈ 0.451%</div>
-    </div>
-
-    <div class="ig">
-      <div class="ig-lbl">分摊期（Amortization）</div>
-      <div class="ig-row"><input id="v-term-amort" type="number" value="25" min="1" max="30" step="1"><span class="ig-pfx">年</span></div>
-      <div class="ig-derived" id="d-term-payment">月供（P+I）≈ $0</div>
-    </div>
-  </div>
-
-  <!-- ⑥ 税务参数 -->
   <div class="sec">
     <div class="sec-ttl">税务参数</div>
     <div class="ig">
@@ -354,7 +491,104 @@ tr.yr-row td:first-child{font-family:'JetBrains Mono',monospace;color:var(--ink)
     </div>
   </div>
 
-  <!-- ⑥ 汇总 -->
+  <div class="sec">
+    <div class="sec-ttl">HELOC 参数</div>
+    <div class="ig">
+      <div class="ig-lbl">HELOC 总额度</div>
+      <div class="ig-row"><span class="ig-pfx">$</span><input id="v-heloc-limit" type="number" value="300000" min="0" step="10000"></div>
+      <div class="ig-hint">实际使用额由建仓记录决定</div>
+    </div>
+    <div class="ig">
+      <div class="ig-lbl">HELOC 名义利率</div>
+      <div class="ig-row"><input id="v-heloc-rate" type="number" value="4.95" min="0.5" max="15" step="0.05"><span class="ig-pfx">%</span></div>
+      <div class="ig-derived" id="d-heloc-ear">EAR ≈ 5.074%</div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-ttl">TERM 贷款参数</div>
+    <div class="ig-hint" style="margin-bottom:7px;color:var(--ink3);font-size:10px">加拿大惯例：半年复利（SAC）。月供固定，基于贷款总额计算；建仓时从贷款池提取，不影响月供。推演起始前已过月供正常延续。</div>
+    <div class="ig">
+      <div class="ig-lbl">TERM 贷款总额</div>
+      <div class="ig-row"><span class="ig-pfx">$</span><input id="v-term-amt" type="number" value="100000" min="0" step="10000"></div>
+    </div>
+    <div class="ig">
+      <div class="ig-lbl">放款月份（首期月供同月起算）</div>
+      <div class="ig-row"><input id="v-term-start" type="month" value="2026-06"></div>
+    </div>
+    <div class="ig-2col">
+      <div class="ig-sm">
+        <div class="ig-lbl">名义利率</div>
+        <div class="ig-row"><input id="v-term-rate" type="number" value="5.5" min="0.5" max="15" step="0.05"><span class="ig-pfx" style="font-size:10px">%</span></div>
+      </div>
+      <div class="ig-sm">
+        <div class="ig-lbl">摊还期（年）</div>
+        <div class="ig-row"><input id="v-term-amort" type="number" value="25" min="1" max="30" step="1"><span class="ig-pfx" style="font-size:10px">yr</span></div>
+      </div>
+    </div>
+    <div class="ig-derived" id="d-term-mr">月等效利率 ≈ 0.451%（SAC）</div>
+    <div class="ig-derived" id="d-term-pmt">固定月供（P+I）≈ $613</div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-ttl">XEI 参数</div>
+    <div class="ig-2col">
+      <div class="ig-sm"><div class="ig-lbl">期初价格</div><div class="ig-row"><span class="ig-pfx" style="font-size:10px">$</span><input id="v-xei-price" type="number" value="37" min="0.01" step="0.5"></div></div>
+      <div class="ig-sm"><div class="ig-lbl">期初持股</div><div class="ig-row"><input id="v-xei-shares" type="number" value="0" min="0" step="100"></div></div>
+    </div>
+    <div class="ig-2col">
+      <div class="ig-sm"><div class="ig-lbl">月DPS($)</div><div class="ig-row"><input id="v-xei-dps" type="number" value="0.11" min="0" step="0.005"></div></div>
+      <div class="ig-sm"><div class="ig-lbl">月涨幅%</div><div class="ig-row"><input id="v-xei-mg" type="number" value="0.5" min="-5" max="20" step="0.1"></div></div>
+    </div>
+    <div class="ig-derived" id="d-xei-annual">年化收益 ≈ +6.2%</div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-ttl">XEQT 参数</div>
+    <div class="ig-2col">
+      <div class="ig-sm"><div class="ig-lbl">期初价格</div><div class="ig-row"><span class="ig-pfx" style="font-size:10px">$</span><input id="v-xeqt-price" type="number" value="30" min="0.01" step="0.5"></div></div>
+      <div class="ig-sm"><div class="ig-lbl">期初持股</div><div class="ig-row"><input id="v-xeqt-shares" type="number" value="0" min="0" step="100"></div></div>
+    </div>
+    <div class="ig-2col">
+      <div class="ig-sm"><div class="ig-lbl">月DPS($)</div><div class="ig-row"><input id="v-xeqt-dps" type="number" value="0.063" min="0" step="0.001"></div></div>
+      <div class="ig-sm"><div class="ig-lbl">月涨幅%</div><div class="ig-row"><input id="v-xeqt-mg" type="number" value="0.6" min="-5" max="20" step="0.1"></div></div>
+    </div>
+    <div class="ig-derived" id="d-xeqt-annual">年化收益 ≈ +7.4%</div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-ttl">QQQ 参数</div>
+    <div class="ig-2col">
+      <div class="ig-sm"><div class="ig-lbl">期初价格</div><div class="ig-row"><span class="ig-pfx" style="font-size:10px">$</span><input id="v-qqq-price" type="number" value="500" min="0.01" step="1"></div></div>
+      <div class="ig-sm"><div class="ig-lbl">期初持股</div><div class="ig-row"><input id="v-qqq-shares" type="number" value="0" min="0" step="1"></div></div>
+    </div>
+    <div class="ig-2col">
+      <div class="ig-sm"><div class="ig-lbl">月DPS($)</div><div class="ig-row"><input id="v-qqq-dps" type="number" value="0.25" min="0" step="0.01"></div></div>
+      <div class="ig-sm"><div class="ig-lbl">月涨幅%</div><div class="ig-row"><input id="v-qqq-mg" type="number" value="1.0" min="-5" max="20" step="0.1"></div></div>
+    </div>
+    <div class="ig-derived" id="d-qqq-annual">年化收益 ≈ +12.7%</div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-ttl">SHV 参数</div>
+    <div class="ig-2col">
+      <div class="ig-sm"><div class="ig-lbl">期初价格</div><div class="ig-row"><span class="ig-pfx" style="font-size:10px">$</span><input id="v-shv-price" type="number" value="50" min="0.01" step="0.01"></div></div>
+      <div class="ig-sm"><div class="ig-lbl">期初持股</div><div class="ig-row"><input id="v-shv-shares" type="number" value="0" min="0" step="100"></div></div>
+    </div>
+    <div class="ig-2col">
+      <div class="ig-sm"><div class="ig-lbl">月DPS($)</div><div class="ig-row"><input id="v-shv-dps" type="number" value="0.188" min="0" step="0.001"></div></div>
+      <div class="ig-sm"><div class="ig-lbl">月涨幅%</div><div class="ig-row"><input id="v-shv-mg" type="number" value="0.05" min="-2" max="5" step="0.01"></div></div>
+    </div>
+    <div class="ig-derived" id="d-shv-annual">年化收益 ≈ +0.6%</div>
+  </div>
+
+  <div class="sec">
+    <div class="save-row">
+      <button class="btn btn-primary btn-sm" onclick="saveParams()">💾 保存参数</button>
+      <span class="save-ind" id="save-ind">未保存</span>
+    </div>
+  </div>
+
   <div class="sec">
     <div class="sec-ttl">5年末汇总</div>
     <div id="summary"></div>
@@ -367,6 +601,36 @@ tr.yr-row td:first-child{font-family:'JetBrains Mono',monospace;color:var(--ink)
 <div class="content">
 
   <div class="kpis" id="kpis"></div>
+
+  <!-- Purchase records panel -->
+  <div class="pcard">
+    <div class="pcard-hdr">
+      <span class="pcard-ttl">📦 建仓记录（XEI · XEQT · QQQ · SHV）</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span id="pu-count" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink3)">0 笔</span>
+        <button class="btn btn-primary btn-sm" onclick="openPuAdd()">＋ 添加购入</button>
+      </div>
+    </div>
+    <div class="pcard-scroll">
+      <table class="pu-tbl" id="pu-tbl">
+        <thead>
+          <tr>
+            <th>月份</th>
+            <th>股票</th>
+            <th>份额</th>
+            <th>买入价</th>
+            <th>成本</th>
+            <th>来源</th>
+            <th>备注</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="pu-tbody"></tbody>
+      </table>
+      <div class="pcard-empty hidden" id="pu-empty">暂无建仓记录，点击"添加购入"开始记录</div>
+    </div>
+    <div class="pcard-foot" id="pu-foot"></div>
+  </div>
 
   <div class="ytabs" id="ytabs"></div>
 
@@ -395,536 +659,1121 @@ tr.yr-row td:first-child{font-family:'JetBrains Mono',monospace;color:var(--ink)
     <div class="chart-leg">
       <div class="cli"><div class="cld" style="background:var(--gl)"></div>净现金流（正）</div>
       <div class="cli"><div class="cld" style="background:var(--rl)"></div>净现金流（负）</div>
-      <div class="cli"><div class="cld" style="background:var(--bl);opacity:.4"></div>XEI市值（比例）</div>
+      <div class="cli"><div class="cld" style="background:var(--bl);opacity:.4"></div>组合总值（比例）</div>
     </div>
   </div>
 
   <div class="note" id="note"></div>
+  <div id="tax-summary"></div>
 
-</div>
+</div><!-- /content -->
 </div><!-- /layout -->
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// ── Constants ──
-const TOTAL_MONTHS = 60;
+'use strict';
 
-let curYr = 0;
-let SIM   = [];
-let SIM_YEARS = []; // distinct years covered by simulation
+/* ══════════════════════════════════════════
+   CONFIG
+══════════════════════════════════════════ */
+const SB_URL  = 'https://muftliyimizceefbnely.supabase.co';
+const SB_KEY  = 'sb_publishable_TYWRmCX8OpjiBq3yVicJLw_SHJUC8s1';
+const TBL_P   = 'cashflow_params';    // single-row params
+const TBL_PU  = 'cashflow_purchases'; // purchase records
 
-// ── Helpers ──
+let sb = null; // supabase client
+
+/* ══════════════════════════════════════════
+   STATE
+══════════════════════════════════════════ */
+let PARAMS       = defaultParams();
+let PURCHASES    = []; // [{id,purchase_month,ticker,shares,price,source,notes,created_at}]
+let SIM          = []; // simulation rows
+let SIM_YEARS    = [];
+let TAX_BREAKDOWN= {}; // {year: {rentalTaxable,rentalTax,xeiDiv,xeiTax,otherDiv,otherDivTax,helocInt,helocShield,termInt,termShield,net}}
+let curYr        = 0;
+let editPuId     = null;
+let delPuId      = null;
+
+/* ══════════════════════════════════════════
+   DEFAULTS
+══════════════════════════════════════════ */
+function defaultParams() {
+  return {
+    id:1, start_month:'2026-10', rent_start_month:'',
+    salary:4700, rent:3200, other_income_annual:0,
+    insur:100, maint:300, ptax_annual:6400,
+    marginal_tax_rate:30,
+    heloc_limit:300000, heloc_rate:4.95,
+    term_amt:100000, term_start_month:'2026-06', term_rate:5.5, term_amort:25,
+    xei_init_price:37,   xei_init_shares:0,   xei_dps:0.11,   xei_monthly_growth:0.5,
+    xeqt_init_price:30,  xeqt_init_shares:0,  xeqt_dps:0.063, xeqt_monthly_growth:0.6,
+    qqq_init_price:500,  qqq_init_shares:0,   qqq_dps:0.25,   qqq_monthly_growth:1.0,
+    shv_init_price:50,   shv_init_shares:0,   shv_dps:0.188,  shv_monthly_growth:0.05,
+  };
+}
+
+/* ══════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════ */
 const f = (n, d=0) => {
-  if (n === undefined || isNaN(n)) return '—';
+  if (n===undefined || n===null || isNaN(n)) return '—';
   const a = Math.abs(n);
   const s = a.toLocaleString('en-CA', {minimumFractionDigits:d, maximumFractionDigits:d});
   return (n < 0 ? '(−$' : '$') + s + (n < 0 ? ')' : '');
 };
-const gv = id => parseFloat(document.getElementById(id).value) || 0;
+const pct = (n,d=1) => (n===undefined||isNaN(n)) ? '—' : n.toFixed(d)+'%';
+const gv  = id => parseFloat(document.getElementById(id)?.value) || 0;
+const g   = id => document.getElementById(id);
 
-// Parse "YYYY-MM" → {year, month0} (month0 = 0-indexed)
-function parseStart() {
-  const raw = document.getElementById('v-start').value || '2026-10';
-  const [y, m] = raw.split('-').map(Number);
-  return { startYear: y || 2026, startMonth0: (m || 10) - 1 };
+function parseStart(sm) {
+  const [y,m] = (sm||'2026-10').split('-').map(Number);
+  return { startYear:y||2026, startMonth0:(m||10)-1 };
+}
+function calOf(m, sy, sm0) {
+  const d = new Date(sy, sm0+m, 1);
+  return { yr:d.getFullYear(), mo:d.getMonth()+1 };
+}
+function fmtM(m, sy, sm0) {
+  const d = new Date(sy, sm0+m, 1);
+  return d.toLocaleDateString('zh-CN',{year:'numeric',month:'2-digit'})
+          .replace('/','年').replace('/','月');
+}
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toast(msg, type='ok') {
+  const c = g('toasts');
+  const d = document.createElement('div');
+  d.className = `toast ${type}`;
+  d.innerHTML = `<span style="font-size:14px;flex-shrink:0">${type==='ok'?'✓':'✕'}</span> ${esc(msg)}`;
+  c.appendChild(d);
+  setTimeout(()=>{ d.style.cssText='opacity:0;transform:translateX(110%);transition:all .3s'; setTimeout(()=>d.remove(),320); }, 3500);
+}
+function setSyncBadge(txt) { g('sync-badge').textContent = txt; }
+
+/* ══════════════════════════════════════════
+   FORM ↔ PARAMS
+══════════════════════════════════════════ */
+const PARAM_FIELDS = [
+  ['v-start',       'start_month',         'str'],
+  ['v-rent-start',  'rent_start_month',    'str'],
+  ['v-salary',      'salary',              'num'],
+  ['v-rent',        'rent',                'num'],
+  ['v-other-annual','other_income_annual', 'num'],
+  ['v-insur',       'insur',               'num'],
+  ['v-maint',       'maint',               'num'],
+  ['v-ptax',        'ptax_annual',         'num'],
+  ['v-mar',         'marginal_tax_rate',   'num'],
+  ['v-heloc-limit', 'heloc_limit',         'num'],
+  ['v-heloc-rate',  'heloc_rate',          'num'],
+  ['v-term-amt',    'term_amt',            'num'],
+  ['v-term-start',  'term_start_month',    'str'],
+  ['v-term-rate',   'term_rate',           'num'],
+  ['v-term-amort',  'term_amort',          'num'],
+  ['v-xei-price',   'xei_init_price',      'num'],
+  ['v-xei-shares',  'xei_init_shares',     'num'],
+  ['v-xei-dps',     'xei_dps',             'num'],
+  ['v-xei-mg',      'xei_monthly_growth',  'num'],
+  ['v-xeqt-price',  'xeqt_init_price',     'num'],
+  ['v-xeqt-shares', 'xeqt_init_shares',    'num'],
+  ['v-xeqt-dps',    'xeqt_dps',            'num'],
+  ['v-xeqt-mg',     'xeqt_monthly_growth', 'num'],
+  ['v-qqq-price',   'qqq_init_price',      'num'],
+  ['v-qqq-shares',  'qqq_init_shares',     'num'],
+  ['v-qqq-dps',     'qqq_dps',             'num'],
+  ['v-qqq-mg',      'qqq_monthly_growth',  'num'],
+  ['v-shv-price',   'shv_init_price',      'num'],
+  ['v-shv-shares',  'shv_init_shares',     'num'],
+  ['v-shv-dps',     'shv_dps',             'num'],
+  ['v-shv-mg',      'shv_monthly_growth',  'num'],
+];
+function readFormToParams() {
+  PARAM_FIELDS.forEach(([id, key, type]) => {
+    const el = g(id); if(!el) return;
+    PARAMS[key] = type==='str' ? el.value : (parseFloat(el.value)||0);
+  });
+  PARAMS.id = 1;
+}
+function setFormFromParams(p) {
+  PARAM_FIELDS.forEach(([id, key]) => {
+    const el = g(id); if(!el) return;
+    el.value = p[key]!==undefined ? p[key] : '';
+  });
 }
 
-// Get calendar year/month for offset m from start
-function calOf(m, startYear, startMonth0) {
-  const d = new Date(startYear, startMonth0 + m, 1);
-  return { yr: d.getFullYear(), mo: d.getMonth() + 1 };
+/* ══════════════════════════════════════════
+   SUPABASE — PARAMS
+══════════════════════════════════════════ */
+async function loadParams() {
+  try {
+    const { data, error } = await sb.from(TBL_P).select('*').eq('id',1).maybeSingle();
+    if (error) throw error;
+    if (data) {
+      PARAMS = { ...defaultParams(), ...data };
+      setFormFromParams(PARAMS);
+    }
+  } catch(e) {
+    toast('参数加载失败，使用默认值: '+e.message,'err');
+  }
+}
+async function saveParams() {
+  readFormToParams();
+  const row = { ...PARAMS, id:1, updated_at: new Date().toISOString() };
+  try {
+    const { error } = await sb.from(TBL_P).upsert(row, { onConflict:'id' });
+    if (error) throw error;
+    const t = new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    g('save-ind').textContent = '✓ 已保存 '+t;
+    toast('参数已保存','ok');
+    setSyncBadge('✓ '+t);
+  } catch(e) {
+    toast('保存失败: '+e.message,'err');
+    g('save-ind').textContent = '✕ 保存失败';
+  }
 }
 
-// Format label
-function fmtM(m, startYear, startMonth0) {
-  const d = new Date(startYear, startMonth0 + m, 1);
-  return d.toLocaleDateString('zh-CN', {year:'numeric', month:'2-digit'})
-          .replace('/', '\u5e74').replace('/', '月');
+/* ══════════════════════════════════════════
+   SUPABASE — PURCHASES CRUD
+══════════════════════════════════════════ */
+async function loadPurchases() {
+  const { data, error } = await sb.from(TBL_PU).select('*').order('purchase_month').order('id');
+  if (error) throw error;
+  PURCHASES = data || [];
+}
+async function insertPurchase(row) {
+  const { data, error } = await sb.from(TBL_PU).insert(row).select().single();
+  if (error) throw error;
+  PURCHASES.push(data);
+  PURCHASES.sort((a,b)=> a.purchase_month.localeCompare(b.purchase_month) || a.id-b.id);
+}
+async function updatePurchase(id, row) {
+  const { data, error } = await sb.from(TBL_PU).update(row).eq('id',id).select().single();
+  if (error) throw error;
+  PURCHASES = PURCHASES.map(p => +p.id===+id ? data : p);
+}
+async function deletePurchase(id) {
+  const { error } = await sb.from(TBL_PU).delete().eq('id',id);
+  if (error) throw error;
+  PURCHASES = PURCHASES.filter(p => +p.id!==+id);
 }
 
-// ── Read inputs ──
-function getP() {
-  const { startYear, startMonth0 } = parseStart();
-  const salary   = gv('v-salary')  || 4700;
-  const rent     = gv('v-rent')    || 3200;
-  const insur    = gv('v-insur')   || 100;
-  const maint    = gv('v-maint')   || 300;
-  const ptaxYr   = gv('v-ptax')    || 6400;
-  const ptaxSemi = ptaxYr / 2;
-  const ptaxMAcc = ptaxYr / 12;   // monthly accrual for tax calc
-  const p0       = gv('v-p0')      || 37;
-  const initShares = parseFloat(document.getElementById('v-shares').value) || 0;
-  const initVal  = p0 * initShares;
-  const dps      = gv('v-dps')     || 0.11;
-  const mgPct    = gv('v-mg')      ?? 0.5;
-  const heloc    = gv('v-heloc')   || 0;
-  const nomRate  = gv('v-rate')    || 4.95;
-  const mg       = mgPct / 100;
-  const ear      = Math.pow(1 + nomRate/100/365, 365) - 1;
-  const mEar     = Math.pow(1 + ear, 1/12) - 1;
-  const dcaM     = heloc > 0 ? Math.round(heloc / 7) : 0;
-  // Total capital to deploy: HELOC (7 months DCA) + Term (lump sum month 0)
-  const totalDeploy = heloc + (gv('v-term-amt') || 0);
-  const marPct = parseFloat(document.getElementById('v-mar').value) || 30;
-  const mar    = marPct / 100;
-  const divEff = Math.max(0, 1.38*mar - 1.38*(0.150198+0.10));
+/* ══════════════════════════════════════════
+   SIMULATION
+══════════════════════════════════════════ */
+function simulate() {
+  const p = PARAMS;
+  const { startYear, startMonth0 } = parseStart(p.start_month);
 
-  // Term loan (Canadian semi-annual compounding convention)
-  const termAmt   = gv('v-term-amt')   || 0;
-  const termNom   = gv('v-term-rate')  || 5.5;          // nominal annual %
-  const termAmort = gv('v-term-amort') || 25;           // years
-  // Semi-annual compounding → effective annual → monthly effective
-  // EAR = (1 + termNom/200)^2 - 1
-  // monthly rate = (1 + EAR)^(1/12) - 1 = (1 + termNom/200)^(1/6) - 1
-  const termMonthRate = Math.pow(1 + termNom/200, 1/6) - 1;
-  const termN         = termAmort * 12;  // total payment months
-  // Standard annuity payment: P * r * (1+r)^n / ((1+r)^n - 1)
-  const termPayment   = termAmt > 0 && termMonthRate > 0
-    ? termAmt * termMonthRate * Math.pow(1+termMonthRate, termN)
-      / (Math.pow(1+termMonthRate, termN) - 1)
-    : 0;
-
-  return {
-    startYear, startMonth0,
-    salary, rent, insur, maint, ptaxYr, ptaxSemi, ptaxMAcc,
-    p0, initShares, initVal, dps, mg, heloc, nomRate, ear, mEar, dcaM,
-    termAmt, termNom, termAmort, termMonthRate, termN, termPayment,
-    totalDeploy,
-    mar, divEff, marPct
-  };
-}
-
-// ── Simulate ──
-function simulate(p) {
-  let shares   = p.initShares;
+  let sh = { XEI:+p.xei_init_shares||0, XEQT:+p.xeqt_init_shares||0, QQQ:+p.qqq_init_shares||0, SHV:+p.shv_init_shares||0 };
   let helocBal = 0, cumNCF = 0;
-  let termBal  = p.termAmt;   // term loan outstanding balance
-  let taxAcc   = {rental:0, div:0, hint:0, termInt:0};
-  let pending  = {};
-  const rows   = [];
+  let taxAcc = {
+    rental:0, rentalGross:0, ptaxAcc:0, insurAcc:0, maintAcc:0, rentalMonths:0, months:0,
+    xeiDiv:0, xeqtDiv:0, qqqDiv:0, shvDiv:0, otherDiv:0,
+    hint:0, termInt:0,
+  };
+  let pending = {};
+  const taxBreakdown = {}; // per calendar year, enriched for detail display
 
-  for (let m = 0; m < TOTAL_MONTHS; m++) {
-    const { yr, mo } = calOf(m, p.startYear, p.startMonth0);
-    const price = p.p0 * Math.pow(1 + p.mg, m);
+  // ── Rates ──
+  const helocEAR = Math.pow(1 + p.heloc_rate/100/365, 365) - 1;
+  const helocMR  = Math.pow(1 + helocEAR, 1/12) - 1;
+  const termMR   = Math.pow(1 + p.term_rate/200, 1/6) - 1;  // Canadian SAC
+  const termN    = +p.term_amort * 12;
+  // Fixed monthly payment based on ORIGINAL loan amount (never changes)
+  const termPayment = (p.term_amt > 0 && termMR > 0 && termN > 0)
+    ? +p.term_amt * termMR * Math.pow(1+termMR,termN) / (Math.pow(1+termMR,termN)-1)
+    : 0;
+  const mar      = p.marginal_tax_rate / 100;
+  const divEff   = Math.max(0, 1.38*mar - 1.38*(0.150198+0.10));
+  const ptaxSemi = p.ptax_annual / 2;
+  const ptaxMAcc = p.ptax_annual / 12;
+  const otherMonthly = (+p.other_income_annual || 0) / 12;
 
-    // DCA: Term loan → lump sum buy in month 0; HELOC → 7 monthly tranches
-    let dcaBuy = 0;
-    // Term: entire amount deployed in month 0 as lump sum
-    if (m === 0 && p.termAmt > 0) {
-      dcaBuy   += p.termAmt;
-      shares   += p.termAmt / price;
-      // termBal already set to p.termAmt above (represents the outstanding loan)
+  // ── Rent start: can differ from simulation start ──
+  const rentStartStr = (p.rent_start_month || '').trim();
+  const rsp = rentStartStr ? parseStart(rentStartStr) : { startYear, startMonth0 };
+  const rentAbsM = rsp.startYear * 12 + rsp.startMonth0; // absolute month rent begins
+
+  // ── TERM loan: absolute-month anchoring ──
+  // term_start_month = disbursement month; first payment made in that same month.
+  // Any months elapsed BEFORE simulation start are pre-computed via standard
+  // amortization formula so the running balance is correct at sim month 0.
+  const simAbsM = startYear * 12 + startMonth0;
+  const tsp = parseStart(p.term_start_month || `${startYear}-${String(startMonth0+1).padStart(2,'0')}`);
+  const termAbsM  = tsp.startYear * 12 + tsp.startMonth0;
+  const preElapsed = simAbsM - termAbsM; // >0 means term already started before sim
+
+  // Balance at simulation start (AFTER preElapsed payments already made)
+  let termBal = 0;
+  if (p.term_amt > 0 && termPayment > 0) {
+    if (preElapsed <= 0) {
+      termBal = 0; // not started yet; will start during simulation
+    } else {
+      const rem = termN - preElapsed;
+      // PV of remaining (rem) payments at termMR
+      termBal = rem > 0 ? termPayment * (1 - Math.pow(1+termMR,-rem)) / termMR : 0;
     }
-    // HELOC: split evenly over 7 months
-    if (m < 7 && p.dcaM > 0) {
-      dcaBuy   += p.dcaM;
-      shares   += p.dcaM / price;
-      helocBal += p.dcaM;
+  }
+
+  // ── Index purchases by YYYY-MM ──
+  const buyMap = {};
+  PURCHASES.forEach(pu => {
+    if (!buyMap[pu.purchase_month]) buyMap[pu.purchase_month] = [];
+    buyMap[pu.purchase_month].push(pu);
+  });
+
+  const rows = [];
+  for (let m = 0; m < 60; m++) {
+    const { yr, mo } = calOf(m, startYear, startMonth0);
+    const mKey = `${yr}-${String(mo).padStart(2,'0')}`;
+    const mAbsM       = simAbsM + m;
+    const termElapsed = mAbsM - termAbsM;   // months since loan disbursement
+    const isRentActive= mAbsM >= rentAbsM;  // rent collected this month?
+    const rentIncome  = isRentActive ? +p.rent : 0;
+
+    // Loan disburses THIS month (within simulation window)
+    if (termElapsed === 0 && p.term_amt > 0) {
+      termBal = +p.term_amt;
     }
 
-    const hint = helocBal * p.mEar;
-    const div  = shares * p.dps;
+    // ── Purchases ──
+    let cashBuyCost = 0;
+    const monthBuys = buyMap[mKey] || [];
+    monthBuys.forEach(pu => {
+      sh[pu.ticker] = (sh[pu.ticker]||0) + (+pu.shares);
+      const cost = +pu.shares * +pu.price;
+      if (pu.source === 'HELOC') {
+        helocBal += cost;           // HELOC draws increase outstanding balance
+      } else if (pu.source === 'TERM') {
+        /* TERM purchases draw from pre-disbursed loan pool.
+           The loan balance follows the FIXED amortization schedule — it does
+           NOT increase with each purchase; only the unspent pool decreases. */
+      } else {
+        cashBuyCost += cost;        // CASH purchases are real cash outflows
+      }
+    });
 
-    // Property tax: cash paid in June and December
-    const propTaxCash = (mo === 6 || mo === 12) ? p.ptaxSemi : 0;
+    // ── Projected prices ──
+    const px = {
+      XEI:  +p.xei_init_price  * Math.pow(1 + p.xei_monthly_growth/100,  m),
+      XEQT: +p.xeqt_init_price * Math.pow(1 + p.xeqt_monthly_growth/100, m),
+      QQQ:  +p.qqq_init_price  * Math.pow(1 + p.qqq_monthly_growth/100,  m),
+      SHV:  +p.shv_init_price  * Math.pow(1 + p.shv_monthly_growth/100,  m),
+    };
 
-    // Term loan: interest & principal split (only if balance > 0)
-    let termInt  = 0, termPrin = 0, termPmt = 0;
-    if (termBal > 0.01 && p.termPayment > 0) {
-      termInt  = termBal * p.termMonthRate;
-      termPrin = Math.min(termBal, p.termPayment - termInt);
+    // ── Dividends — ALL tickers use DPS × shares ──
+    const xeiDiv  = sh.XEI  * (+p.xei_dps);
+    const xeqtDiv = sh.XEQT * (+p.xeqt_dps);
+    const qqqDiv  = sh.QQQ  * (+p.qqq_dps);
+    const shvDiv  = sh.SHV  * (+p.shv_dps);
+    const totDiv  = xeiDiv + xeqtDiv + qqqDiv + shvDiv;
+
+    // ── HELOC interest (interest-only on outstanding balance) ──
+    const helocInt = helocBal * helocMR;
+
+    // ── TERM: fixed P+I payment if loan is active ──
+    let termInt=0, termPrin=0, termPmt=0;
+    if (termElapsed >= 0 && termBal > 0.01 && termPayment > 0) {
+      termInt  = termBal * termMR;
+      termPrin = Math.max(0, Math.min(termBal, termPayment - termInt));
       termPmt  = termInt + termPrin;
       termBal  = Math.max(0, termBal - termPrin);
     }
 
-    // Tax accrual (calendar year)
-    // Term interest is also deductible under Line 22100 (investment loan)
-    const rentalTaxable = p.rent - p.ptaxMAcc - p.insur - p.maint;
-    taxAcc.rental  += rentalTaxable;
-    taxAcc.div     += div;
-    taxAcc.hint    += hint;
-    taxAcc.termInt += termInt;   // term interest accrual
+    // ── Property tax ──
+    const propTaxCash = (mo===6||mo===12) ? ptaxSemi : 0;
 
-    // Dec: crystallise year-end tax
+    // ── Tax accrual (granular, split by income type) ──
+    taxAcc.months++;
+    if (isRentActive) {
+      taxAcc.rentalMonths++;
+      taxAcc.rentalGross += +p.rent;
+      taxAcc.ptaxAcc     += ptaxMAcc;
+      taxAcc.insurAcc    += +p.insur;
+      taxAcc.maintAcc    += +p.maint;
+      taxAcc.rental      += +p.rent - ptaxMAcc - +p.insur - +p.maint;
+    }
+    taxAcc.xeiDiv   += xeiDiv;          // Canadian Eligible Dividend
+    taxAcc.xeqtDiv  += xeqtDiv;
+    taxAcc.qqqDiv   += qqqDiv;
+    taxAcc.shvDiv   += shvDiv;
+    taxAcc.otherDiv += xeqtDiv + qqqDiv + shvDiv; // foreign/ordinary income
+    taxAcc.hint     += helocInt;
+    taxAcc.termInt  += termInt;
     if (mo === 12) {
-      const rt = taxAcc.rental  * p.mar;
-      const dt = taxAcc.div     * p.divEff;
-      const hs = taxAcc.hint    * p.mar;   // HELOC interest shield
-      const ts = taxAcc.termInt * p.mar;   // Term interest shield
-      pending[yr] = rt + dt - hs - ts;
-      taxAcc = {rental:0, div:0, hint:0, termInt:0};
+      // XEI eligible dividend: Gross-up 1.38, then Federal DTC 15.0198% + Ontario DTC 10%
+      const rentalTax    = taxAcc.rental * mar;
+      const xeiGrossUp   = taxAcc.xeiDiv * 1.38;
+      const xeiGrossTax  = xeiGrossUp * mar;
+      const fedDTC       = xeiGrossUp * 0.150198;
+      const onDTC        = xeiGrossUp * 0.10;
+      const xeiTax       = Math.max(0, xeiGrossTax - fedDTC - onDTC);
+      const otherDivTax  = taxAcc.otherDiv * mar;
+      const helocShield  = taxAcc.hint   * mar;  // Line 22100
+      const termShield   = taxAcc.termInt * mar; // Line 22100
+      const net = rentalTax + xeiTax + otherDivTax - helocShield - termShield;
+      pending[yr] = net;
+      taxBreakdown[yr] = {
+        months: taxAcc.months,
+        // Rental detail
+        rentalMonths: taxAcc.rentalMonths,
+        rentalGross:  taxAcc.rentalGross,
+        ptaxAcc:      taxAcc.ptaxAcc,
+        insurAcc:     taxAcc.insurAcc,
+        maintAcc:     taxAcc.maintAcc,
+        rentalTaxable: taxAcc.rental,   rentalTax,
+        // XEI eligible dividend (step-by-step)
+        xeiDiv: taxAcc.xeiDiv, xeiGrossUp, xeiGrossTax, fedDTC, onDTC, xeiTax,
+        // Other dividends (per ticker for detail display)
+        xeqtDiv: taxAcc.xeqtDiv, qqqDiv: taxAcc.qqqDiv, shvDiv: taxAcc.shvDiv,
+        otherDiv: taxAcc.otherDiv, otherDivTax,
+        // Interest shields
+        helocInt: taxAcc.hint, helocShield,
+        termInt:  taxAcc.termInt, termShield,
+        // Totals
+        grossTax: rentalTax + xeiTax + otherDivTax,
+        totalShield: helocShield + termShield,
+        net,
+      };
+      taxAcc = {
+        rental:0, rentalGross:0, ptaxAcc:0, insurAcc:0, maintAcc:0, rentalMonths:0, months:0,
+        xeiDiv:0, xeqtDiv:0, qqqDiv:0, shvDiv:0, otherDiv:0, hint:0, termInt:0,
+      };
     }
-
-    // Apr: pay/refund prior year's tax
     let taxCash = 0;
-    if (mo === 4 && pending[yr-1] !== undefined) {
-      taxCash = pending[yr-1];
-      delete pending[yr-1];
-    }
+    if (mo===4 && pending[yr-1]!==undefined) { taxCash=pending[yr-1]; delete pending[yr-1]; }
 
-    const cashIn  = p.salary + p.rent + div;
-    const cashOut = p.insur + p.maint + propTaxCash + hint + termPmt + taxCash;
+    // ── Portfolio values ──
+    const pv = { XEI:sh.XEI*px.XEI, XEQT:sh.XEQT*px.XEQT, QQQ:sh.QQQ*px.QQQ, SHV:sh.SHV*px.SHV };
+    const totPV = pv.XEI + pv.XEQT + pv.QQQ + pv.SHV;
+
+    const cashIn  = +p.salary + rentIncome + otherMonthly + totDiv;
+    const cashOut = +p.insur + +p.maint + propTaxCash + helocInt + termPmt + taxCash + cashBuyCost;
     const netCF   = cashIn - cashOut;
     cumNCF += netCF;
 
     rows.push({
       m, mo, yr,
-      label: fmtM(m, p.startYear, p.startMonth0),
-      price, shares, xeiVal: shares * price,
-      helocBal, dcaBuy, hint, div, propTaxCash, taxCash,
-      termBal, termInt, termPrin, termPmt,
-      rentalTaxable, cashIn, cashOut, netCF, cumNCF,
-      isDca: dcaBuy > 0, isTax: mo === 4
+      label: fmtM(m, startYear, startMonth0),
+      buys: monthBuys, hasBuy: monthBuys.length>0, isTax: mo===4,
+      termActive: termElapsed >= 0, isRentActive, rentIncome,
+      px:{...px}, sh:{...sh}, pv:{...pv}, totPV,
+      xeiDiv, xeqtDiv, qqqDiv, shvDiv, totDiv,
+      helocInt, helocBal, termInt, termPrin, termPmt, termBal,
+      propTaxCash, taxCash, cashBuyCost, otherMonthly,
+      cashIn, cashOut, netCF, cumNCF,
+      rentalTaxable: isRentActive ? (+p.rent - ptaxMAcc - +p.insur - +p.maint) : 0,
     });
   }
-
-  const lastPending = Object.values(pending).reduce((s, v) => s + v, 0);
-  return { rows, lastPending };
+  const lastPending = Object.values(pending).reduce((s,v)=>s+v,0);
+  const termPoolUsed = PURCHASES.filter(x=>x.source==='TERM')
+    .reduce((s,x)=>s+(+x.shares*+x.price),0);
+  return { rows, lastPending, termPayment, termPoolUsed, taxBreakdown };
 }
 
-// ── Derived labels ──
-function updateLabels(p) {
-  document.getElementById('d-ptax-m').textContent =
-    '月摊销 ≈ $' + (p.ptaxYr/12).toLocaleString('en-CA', {minimumFractionDigits:0, maximumFractionDigits:0});
-  document.getElementById('d-initval').textContent =
-    '初始市值 ≈ $' + p.initVal.toLocaleString('en-CA', {minimumFractionDigits:0, maximumFractionDigits:0});
-  const ay = (Math.pow(1 + p.mg, 12) - 1) * 100;
-  document.getElementById('d-mg').textContent = '年化 ≈ ' + (ay >= 0 ? '+' : '') + ay.toFixed(1) + '%';
-  document.getElementById('d-dca').textContent = p.heloc > 0
-    ? '月建仓 ' + f(p.dcaM) + '（HELOC，7期）'
-    : p.termAmt > 0 ? '首月一次性投入 ' + f(p.termAmt) + '（Term）'
-    : '不借款（无建仓）';
-  document.getElementById('d-ear').textContent = 'EAR ≈ ' + (p.ear * 100).toFixed(3) + '%';
-
-  // Term loan derived labels
-  document.getElementById('d-term-rate').textContent =
-    '月等效利率 ≈ ' + (p.termMonthRate * 100).toFixed(4) + '%  (SAC换算)';
-  document.getElementById('d-term-payment').textContent =
-    p.termAmt > 0 ? '月供（P+I）≈ ' + f(p.termPayment, 2) : '月供 $0（无贷款）';
-
-  const startStr = `${p.startYear}-${String(p.startMonth0+1).padStart(2,'0')}-01`;
-  document.getElementById('top-sub').textContent =
-    `起始 ${startStr} · 月薪 ${f(p.salary)} · 租金 ${f(p.rent)} · HELOC ${p.heloc > 0 ? f(p.heloc)+'@'+p.nomRate.toFixed(2)+'%' : '无'} · Term ${p.termAmt > 0 ? f(p.termAmt)+'@'+p.termNom.toFixed(2)+'%/'+p.termAmort+'yr' : '无'} · 边际税率${p.marPct.toFixed(1)}%`;
-  document.getElementById('chart-ttl').textContent =
-    `月度净现金流（${startStr} 起 · 60个月）`;
-  const _deff = Math.max(0, 1.38*p.mar - 1.38*(0.150198+0.10)) * 100;
-  document.getElementById('d-diveff').textContent =
-    'Eligible div有效税率 ≈ ' + _deff.toFixed(1) + '%';
+/* ══════════════════════════════════════════
+   DERIVED LABELS
+══════════════════════════════════════════ */
+function updateLabels() {
+  const p = PARAMS;
+  g('d-ptax-m').textContent    = '月摊销 ≈ $'+(p.ptax_annual/12).toFixed(0);
+  const mar = p.marginal_tax_rate/100;
+  const deff = Math.max(0,1.38*mar-1.38*(0.150198+0.10))*100;
+  g('d-diveff').textContent    = 'Eligible div有效税率 ≈ '+deff.toFixed(1)+'%';
+  const ear = Math.pow(1+p.heloc_rate/100/365,365)-1;
+  g('d-heloc-ear').textContent = 'EAR ≈ '+(ear*100).toFixed(3)+'%';
+  const tmr  = Math.pow(1+p.term_rate/200,1/6)-1;
+  const tN   = +p.term_amort * 12;
+  const tPmt = (p.term_amt>0 && tmr>0 && tN>0)
+    ? +p.term_amt * tmr * Math.pow(1+tmr,tN) / (Math.pow(1+tmr,tN)-1) : 0;
+  g('d-term-mr').textContent   = '月等效利率 ≈ '+(tmr*100).toFixed(4)+'%（SAC）';
+  g('d-term-pmt').textContent  = tPmt>0 ? '固定月供（P+I）≈ '+f(tPmt,2) : '月供 $0（无贷款）';
+  const ay = n => ((Math.pow(1+n/100,12)-1)*100).toFixed(1)+'%';
+  g('d-xei-annual').textContent  = '年化价格涨幅 ≈ +'+ay(p.xei_monthly_growth);
+  g('d-xeqt-annual').textContent = '年化价格涨幅 ≈ +'+ay(p.xeqt_monthly_growth);
+  g('d-qqq-annual').textContent  = '年化价格涨幅 ≈ +'+ay(p.qqq_monthly_growth);
+  g('d-shv-annual').textContent  = '年化价格涨幅 ≈ +'+ay(p.shv_monthly_growth);
+  const { startYear, startMonth0 } = parseStart(p.start_month);
+  const startStr = `${startYear}-${String(startMonth0+1).padStart(2,'0')}-01`;
+  const rentStartStr2 = (p.rent_start_month||'').trim();
+  const rentNote = rentStartStr2 && rentStartStr2 > p.start_month
+    ? ` · 租金起 ${rentStartStr2}` : '';
+  g('top-sub').textContent =
+    `起始 ${startStr}${rentNote} · 月薪 ${f(p.salary)} · 租金 ${f(p.rent)} · HELOC @${p.heloc_rate}% · TERM @${p.term_rate}% · MTR ${p.marginal_tax_rate}%`;
+  g('chart-ttl').textContent = `月度净现金流（${startStr} 起 · 60个月）`;
 }
 
-// ── Build year tabs (dynamic) ──
-function buildTabs(rows) {
-  const years = [...new Set(rows.map(r => r.yr))].sort();
-  SIM_YEARS = years;
-  const tabsEl = document.getElementById('ytabs');
-  tabsEl.innerHTML = '';
-
-  years.forEach((yr, i) => {
-    const isFirst = i === 0;
-    // detect if first year is partial (not all 12 months)
-    const cnt = rows.filter(r => r.yr === yr).length;
-    const label = cnt < 12 ? `${yr} (${cnt}M)` : `${yr}`;
-    const btn = document.createElement('button');
-    btn.className = 'yb' + (curYr === i ? ' on' : '');
-    btn.textContent = label;
-    btn.onclick = () => setYr(i);
-    tabsEl.appendChild(btn);
-  });
-
-  // "全部" tab
-  const allBtn = document.createElement('button');
-  allBtn.className = 'yb' + (curYr === years.length ? ' on' : '');
-  allBtn.textContent = '全部 60月';
-  allBtn.onclick = () => setYr(years.length);
-  tabsEl.appendChild(allBtn);
-}
-
-// ── Render KPIs ──
-function renderKPIs(rows, p) {
-  const last = rows[TOTAL_MONTHS - 1];
-  const totDiv  = rows.reduce((s, r) => s + r.div,      0);
-  const totHint = rows.reduce((s, r) => s + r.hint,     0);
-  const totTax  = rows.reduce((s, r) => s + r.taxCash,  0);
-  const netWorth = last.xeiVal - last.helocBal;
-
-  const totTermInt  = rows.reduce((s,r) => s + (r.termInt||0), 0);
-  const totTermPrin = rows.reduce((s,r) => s + (r.termPrin||0), 0);
-  const totTermPmt  = rows.reduce((s,r) => s + (r.termPmt||0), 0);
-  const termRemain  = last.termBal || 0;
-  const totalDebt   = last.helocBal + termRemain;
-
-  document.getElementById('kpis').innerHTML = `
-    <div class="kc b"><div class="kl">XEI市值（5年末）</div><div class="kv">${f(last.xeiVal)}</div><div class="ks">${parseFloat(last.shares).toFixed(0)}股 @${f(parseFloat(last.price),2)}</div></div>
-    <div class="kc g"><div class="kl">累计股息（税前）</div><div class="kv">${f(totDiv)}</div><div class="ks">月均 ${f(totDiv/TOTAL_MONTHS)}</div></div>
+/* ══════════════════════════════════════════
+   RENDER — KPIs
+══════════════════════════════════════════ */
+function renderKPIs(rows) {
+  const last    = rows[rows.length-1];
+  const totDiv  = rows.reduce((s,r)=>s+r.totDiv,   0);
+  const totHint = rows.reduce((s,r)=>s+r.helocInt,  0);
+  const totTInt = rows.reduce((s,r)=>s+r.termInt,   0);
+  const totTax  = rows.reduce((s,r)=>s+r.taxCash,   0);
+  const totDebt = last.helocBal + last.termBal;
+  const netWorth= last.totPV - totDebt;
+  const shTxt   = Object.entries(last.sh).filter(([,v])=>v>0).map(([k,v])=>`${k}×${v.toFixed(0)}`).join(' ');
+  g('kpis').innerHTML = `
+    <div class="kc b"><div class="kl">组合总值（5年末）</div><div class="kv">${f(last.totPV)}</div><div class="ks">${shTxt||'无持仓'}</div></div>
+    <div class="kc g"><div class="kl">累计分红（税前）</div><div class="kv">${f(totDiv)}</div><div class="ks">月均 ${f(totDiv/60)}</div></div>
     <div class="kc ${last.cumNCF>=0?'g':'r'}"><div class="kl">累计净现金流</div><div class="kv">${f(last.cumNCF)}</div><div class="ks">税后到手</div></div>
-    <div class="kc r"><div class="kl">累计利息（HELOC+Term）</div><div class="kv">${f(totHint+totTermInt)}</div><div class="ks">HELOC ${f(totHint)} · Term ${f(totTermInt)}</div></div>
+    <div class="kc r"><div class="kl">累计利息（HELOC+Term）</div><div class="kv">${f(totHint+totTInt)}</div><div class="ks">HELOC ${f(totHint)} · Term ${f(totTInt)}</div></div>
     <div class="kc o"><div class="kl">累计税款支出</div><div class="kv">${f(totTax)}</div><div class="ks">4月汇缴/退税</div></div>
-    <div class="kc ${last.xeiVal-totalDebt>=p.initVal?'g':'r'}"><div class="kl">净资产（扣全部负债）</div><div class="kv">${f(last.xeiVal-totalDebt)}</div><div class="ks">HELOC${f(last.helocBal)} · Term${f(termRemain)}</div></div>
+    <div class="kc ${netWorth>=0?'g':'r'}"><div class="kl">净资产（扣全部负债）</div><div class="kv">${f(netWorth)}</div><div class="ks">HELOC${f(last.helocBal)} · Term${f(last.termBal)}</div></div>
   `;
 }
 
-// ── Render Summary ──
-function renderSummary(rows, p) {
-  const last = rows[TOTAL_MONTHS - 1];
-  const { lastPending } = simulate(p);
-  const _termRemain = last.termBal || 0;
-  const _totalDebt  = last.helocBal + _termRemain;
-  document.getElementById('summary').innerHTML = `
-    <div class="mk"><div class="mk-lbl">XEI总市值（5年末）</div><div class="mk-val b">${f(last.xeiVal)}</div></div>
-    <div class="mk"><div class="mk-lbl">HELOC余额</div><div class="mk-val r">${last.helocBal>0?f(last.helocBal):'—'}</div></div>
-    <div class="mk"><div class="mk-lbl">Term余额</div><div class="mk-val r">${_termRemain>0?f(_termRemain):'—'}</div></div>
-    <div class="mk"><div class="mk-lbl">净资产（扣全部负债）</div><div class="mk-val ${last.xeiVal-_totalDebt>=p.initVal?'g':'r'}">${f(last.xeiVal-_totalDebt)}</div></div>
-    <div class="mk"><div class="mk-lbl">累计净现金流</div><div class="mk-val ${last.cumNCF>=0?'g':'r'}">${f(last.cumNCF)}</div></div>
-    <div class="mk"><div class="mk-lbl">窗口外待付税款</div><div class="mk-val o">${f(lastPending)}</div></div>
-  `;
+/* ══════════════════════════════════════════
+   RENDER — PURCHASE TABLE
+══════════════════════════════════════════ */
+function renderPurchaseTable(termPoolUsed) {
+  const tbody = g('pu-tbody');
+  const empty = g('pu-empty');
+  const foot  = g('pu-foot');
+  g('pu-count').textContent = PURCHASES.length+' 笔';
+  if (!PURCHASES.length) {
+    tbody.innerHTML=''; empty.classList.remove('hidden');
+    foot.innerHTML=''; return;
+  }
+  empty.classList.add('hidden');
+  tbody.innerHTML = PURCHASES.map(pu => {
+    const cost = +pu.shares * +pu.price;
+    return `<tr>
+      <td>${esc(pu.purchase_month)}</td>
+      <td><span class="ticker-badge t-${esc(pu.ticker)}">${esc(pu.ticker)}</span></td>
+      <td>${(+pu.shares).toLocaleString('en-CA',{maximumFractionDigits:2})}</td>
+      <td>${f(+pu.price,2)}</td>
+      <td style="font-weight:600">${f(cost)}</td>
+      <td><span class="src-badge src-${esc(pu.source)}">${esc(pu.source)}</span></td>
+      <td style="color:var(--ink3);font-size:10px;max-width:120px;overflow:hidden;text-overflow:ellipsis">${esc(pu.notes||'—')}</td>
+      <td>
+        <div style="display:flex;gap:4px;justify-content:flex-end">
+          <button class="btn btn-ghost btn-xs" onclick="openPuEdit(${pu.id})" title="编辑">✎</button>
+          <button class="btn btn-danger btn-xs" onclick="askDel(${pu.id})" title="删除">✕</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Footer summary per ticker + source
+  const totals = {};
+  PURCHASES.forEach(pu => {
+    const t = pu.ticker;
+    if (!totals[t]) totals[t] = { shares:0, cost:0 };
+    totals[t].shares += +pu.shares;
+    totals[t].cost   += +pu.shares * +pu.price;
+  });
+  const helocTotal = PURCHASES.filter(p=>p.source==='HELOC').reduce((s,p)=>s+(+p.shares*+p.price),0);
+  const termTotal  = PURCHASES.filter(p=>p.source==='TERM').reduce((s,p)=>s+(+p.shares*+p.price),0);
+  const cashTotal  = PURCHASES.filter(p=>p.source==='CASH').reduce((s,p)=>s+(+p.shares*+p.price),0);
+  const termPoolRem = Math.max(0, +PARAMS.term_amt - termTotal);
+  foot.innerHTML =
+    Object.entries(totals).map(([tk,v])=>`<span class="pf-item"><span class="ticker-badge t-${tk}" style="font-size:9px">${tk}</span> <span class="pf-val">${v.shares.toLocaleString('en-CA',{maximumFractionDigits:0})}股 ${f(v.cost)}</span></span>`).join('')
+    + (helocTotal?`<span class="pf-item" style="margin-left:auto"><span class="src-badge src-HELOC">HELOC</span> <span class="pf-val" style="color:var(--rl)">${f(helocTotal)}</span></span>`:'<span style="flex:1"></span>')
+    + (PARAMS.term_amt>0?`<span class="pf-item"><span class="src-badge src-TERM">TERM池</span> <span class="pf-val" style="color:var(--ol)">${f(termTotal)} / ${f(+PARAMS.term_amt)}</span> <span style="font-size:10px;color:var(--ink3)">余${f(termPoolRem)}</span></span>`:'')
+    + (cashTotal?`<span class="pf-item"><span class="src-badge src-CASH">CASH</span> <span class="pf-val" style="color:var(--gl)">${f(cashTotal)}</span></span>`:'');
 }
 
-// ── Filter rows by current tab ──
+/* ══════════════════════════════════════════
+   RENDER — YEAR TABS
+══════════════════════════════════════════ */
+function buildTabs(rows) {
+  SIM_YEARS = [...new Set(rows.map(r=>r.yr))].sort();
+  const el = g('ytabs'); el.innerHTML='';
+  SIM_YEARS.forEach((yr,i) => {
+    const cnt = rows.filter(r=>r.yr===yr).length;
+    const btn = document.createElement('button');
+    btn.className='yb'+(curYr===i?' on':'');
+    btn.textContent = cnt<12 ? `${yr} (${cnt}M)` : `${yr}`;
+    btn.onclick = ()=>setYr(i);
+    el.appendChild(btn);
+  });
+  const allBtn = document.createElement('button');
+  allBtn.className='yb'+(curYr===SIM_YEARS.length?' on':'');
+  allBtn.textContent='全部 60月';
+  allBtn.onclick = ()=>setYr(SIM_YEARS.length);
+  el.appendChild(allBtn);
+}
+function setYr(y) {
+  curYr = y;
+  document.querySelectorAll('.yb').forEach((b,i)=>b.classList.toggle('on',i===y));
+  renderCashflowTable(SIM);
+}
+
+/* ══════════════════════════════════════════
+   RENDER — CASHFLOW TABLE
+══════════════════════════════════════════ */
 function filterRows(rows) {
-  if (curYr < SIM_YEARS.length) return rows.filter(r => r.yr === SIM_YEARS[curYr]);
-  return rows; // all months
+  if (curYr < SIM_YEARS.length) return rows.filter(r=>r.yr===SIM_YEARS[curYr]);
+  return rows;
 }
-
-// ── Render Table ──
-function renderTable(rows, p) {
+function renderCashflowTable(rows) {
+  const p = PARAMS;
   const filt = filterRows(rows);
   const byYr = {};
-  filt.forEach(r => { if (!byYr[r.yr]) byYr[r.yr] = []; byYr[r.yr].push(r); });
+  filt.forEach(r=>{ if(!byYr[r.yr])byYr[r.yr]=[]; byYr[r.yr].push(r); });
 
   let h = `<thead><tr>
     <th style="text-align:left">月份</th>
-    <th>月薪</th><th>租金</th><th>XEI股息</th>
+    <th>月薪</th><th>租金</th><th>其他收入</th>
+    <th style="color:var(--bl)">XEI分红</th>
+    <th style="color:var(--gl)">XEQT分红</th>
+    <th style="color:var(--pul)">QQQ分红</th>
+    <th style="color:var(--ol)">SHV收益</th>
+    <th>HELOC息</th><th>Term月供</th>
     <th>保险</th><th>维护</th><th>房产税</th>
-    <th>HELOC息</th><th>建仓买入</th>
-    <th>Term利息</th><th>Term本金</th><th>Term月供</th>
-    <th>税款收付</th>
+    <th>税款收付</th><th>本月建仓</th>
     <th>月净现金</th><th>累计现金</th>
-    <th>XEI份额</th><th>XEI市值</th><th>HELOC余额</th><th>Term余额</th>
+    <th>组合总值</th><th>HELOC余额</th><th>Term余额</th>
   </tr></thead><tbody>`;
 
   Object.keys(byYr).sort().forEach(yr => {
     const grp = byYr[yr];
-    let ys=0,yr2=0,yd=0,yim=0,ymm=0,yp=0,yh=0,ydca=0,ytax=0,yncf=0;
+    let ys=0,yr2=0,yoth=0,yxei=0,yxeqt=0,yqqq=0,yshv=0,yhi=0,yti=0,yim=0,ymm=0,yp=0,ytax=0,yncf=0,ycash=0;
     grp.forEach(r => {
-      const dTag = r.isDca ? '<span style="font-size:8px;color:var(--bl);margin-left:2px">▲</span>' : '';
-      const tTag = r.isTax ? '<span style="font-size:8px;color:var(--ol);margin-left:2px">◆</span>' : '';
-      h += `<tr class="${r.isTax?'tax-row':''}">
-        <td>${r.label}${dTag}${tTag}</td>
+      const buyTag = r.hasBuy ? '<span style="font-size:8px;color:var(--bl);margin-left:2px">▲</span>' : '';
+      const taxTag = r.isTax  ? '<span style="font-size:8px;color:var(--ol);margin-left:2px">◆</span>' : '';
+      const buyHtml = r.hasBuy
+        ? r.buys.map(b=>`<span class="src-badge src-${b.source}" style="font-size:8px">${b.ticker} ${f(+b.shares*+b.price)}</span>`).join(' ')
+        : '—';
+      h += `<tr class="${r.isTax?'tax-row':r.hasBuy?'buy-row':''}">
+        <td>${r.label}${buyTag}${taxTag}</td>
         <td class="cg">${f(p.salary)}</td>
-        <td class="cg">${f(p.rent)}</td>
-        <td class="cg">${f(r.div,2)}</td>
+        <td class="${r.rentIncome>0?'cg':'ci'}">${r.rentIncome>0?f(r.rentIncome):'—'}</td>
+        <td class="${r.otherMonthly>0?'cg':'ci'}">${r.otherMonthly>0?f(r.otherMonthly):'—'}</td>
+        <td class="${r.xeiDiv>0?'cb':'ci'}">${r.xeiDiv>0?f(r.xeiDiv,2):'—'}</td>
+        <td class="${r.xeqtDiv>0?'cg':'ci'}">${r.xeqtDiv>0?f(r.xeqtDiv,2):'—'}</td>
+        <td class="${r.qqqDiv>0?'cpu':'ci'}">${r.qqqDiv>0?f(r.qqqDiv,2):'—'}</td>
+        <td class="${r.shvDiv>0?'co':'ci'}">${r.shvDiv>0?f(r.shvDiv,2):'—'}</td>
+        <td class="${r.helocInt>0?'cr':'ci'}">${r.helocInt>0?f(r.helocInt,1):'—'}</td>
+        <td class="${r.termPmt>0?'cr':'ci'}" style="font-weight:${r.termPmt>0?600:400}">${r.termPmt>0?f(r.termPmt,1):'—'}</td>
         <td class="cr">${f(p.insur)}</td>
         <td class="cr">${f(p.maint)}</td>
         <td class="${r.propTaxCash>0?'cr':'ci'}">${r.propTaxCash>0?f(r.propTaxCash):'—'}</td>
-        <td class="${r.hint>0?'cr':'ci'}">${r.hint>0?f(r.hint,1):'—'}</td>
-        <td class="${r.dcaBuy>0?'cb':'ci'}">${r.dcaBuy>0?f(r.dcaBuy):'—'}</td>
-        <td class="${r.termInt>0?'cr':'ci'}">${r.termInt>0?f(r.termInt,1):'—'}</td>
-        <td class="${r.termPrin>0?'cr':'ci'}">${r.termPrin>0?f(r.termPrin,1):'—'}</td>
-        <td class="${r.termPmt>0?'cr':'ci'}" style="font-weight:${r.termPmt>0?'600':'400'}">${r.termPmt>0?f(r.termPmt,1):'—'}</td>
         <td class="${r.taxCash>0?'cr':r.taxCash<0?'cg':'ci'}">${r.taxCash!==0?f(r.taxCash):'—'}</td>
+        <td style="text-align:left;font-size:9px">${buyHtml}</td>
         <td class="${r.netCF>=0?'cg':'cr'}" style="font-weight:600">${f(r.netCF)}</td>
         <td class="${r.cumNCF>=0?'cg':'cr'}">${f(r.cumNCF)}</td>
-        <td class="cb">${parseFloat(r.shares).toFixed(1)}</td>
-        <td class="cb" style="font-weight:500">${f(r.xeiVal)}</td>
+        <td class="cb" style="font-weight:500">${f(r.totPV)}</td>
         <td class="${r.helocBal>0?'cr':'ci'}">${r.helocBal>0?f(r.helocBal):'—'}</td>
         <td class="${r.termBal>0?'cr':'ci'}">${r.termBal>0.01?f(r.termBal):'—'}</td>
       </tr>`;
-      ys+=p.salary; yr2+=p.rent; yd+=r.div; yim+=p.insur; ymm+=p.maint;
-      yp+=r.propTaxCash; yh+=r.hint; ydca+=r.dcaBuy;
-      const yti=(r.termInt||0), ytp=(r.termPrin||0), ytpm=(r.termPmt||0);
-      ytax+=r.taxCash; yncf+=r.netCF;
+      ys+=+p.salary; yr2+=r.rentIncome; yoth+=r.otherMonthly;
+      yxei+=r.xeiDiv; yxeqt+=r.xeqtDiv; yqqq+=r.qqqDiv; yshv+=r.shvDiv;
+      yhi+=r.helocInt; yti+=r.termPmt;
+      yim+=+p.insur; ymm+=+p.maint; yp+=r.propTaxCash; ytax+=r.taxCash; yncf+=r.netCF;
+      ycash+=r.cashBuyCost;
     });
     const lr = grp[grp.length-1];
-    const yTermInt  = grp.reduce((s,r)=>s+(r.termInt||0),0);
-    const yTermPrin = grp.reduce((s,r)=>s+(r.termPrin||0),0);
-    const yTermPmt  = grp.reduce((s,r)=>s+(r.termPmt||0),0);
     h += `<tr class="yr-row">
       <td>${yr}年 小计</td>
-      <td class="cg">${f(ys)}</td><td class="cg">${f(yr2)}</td><td class="cg">${f(yd,1)}</td>
-      <td class="cr">${f(yim)}</td><td class="cr">${f(ymm)}</td><td class="cr">${f(yp)}</td>
-      <td class="${yh>0?'cr':'ci'}">${yh>0?f(yh,1):'—'}</td>
-      <td class="${ydca>0?'cb':'ci'}">${ydca>0?f(ydca):'—'}</td>
-      <td class="${yTermInt>0?'cr':'ci'}">${yTermInt>0?f(yTermInt,1):'—'}</td>
-      <td class="${yTermPrin>0?'cr':'ci'}">${yTermPrin>0?f(yTermPrin,1):'—'}</td>
-      <td class="${yTermPmt>0?'cr':'ci'}" style="font-weight:600">${yTermPmt>0?f(yTermPmt,1):'—'}</td>
+      <td class="cg">${f(ys)}</td><td class="cg">${f(yr2)}</td>
+      <td class="${yoth>0?'cg':'ci'}">${yoth>0?f(yoth):'—'}</td>
+      <td class="cb">${yxei>0?f(yxei,1):'—'}</td>
+      <td class="cg">${yxeqt>0?f(yxeqt,1):'—'}</td>
+      <td class="cpu">${yqqq>0?f(yqqq,1):'—'}</td>
+      <td class="co">${yshv>0?f(yshv,1):'—'}</td>
+      <td class="${yhi>0?'cr':'ci'}">${yhi>0?f(yhi,1):'—'}</td>
+      <td class="${yti>0?'cr':'ci'}" style="font-weight:600">${yti>0?f(yti,1):'—'}</td>
+      <td class="cr">${f(yim)}</td><td class="cr">${f(ymm)}</td>
+      <td class="${yp>0?'cr':'ci'}">${yp>0?f(yp):'—'}</td>
       <td class="${ytax>0?'cr':ytax<0?'cg':'ci'}">${ytax!==0?f(ytax):'—'}</td>
+      <td style="font-size:9px;color:var(--ink3)">${ycash>0?'现金 '+f(ycash):'—'}</td>
       <td class="${yncf>=0?'cg':'cr'}" style="font-weight:700">${f(yncf)}</td>
       <td class="${lr.cumNCF>=0?'cg':'cr'}">${f(lr.cumNCF)}</td>
-      <td class="cb">${parseFloat(lr.shares).toFixed(1)}</td>
-      <td class="cb" style="font-weight:600">${f(lr.xeiVal)}</td>
+      <td class="cb" style="font-weight:600">${f(lr.totPV)}</td>
       <td class="${lr.helocBal>0?'cr':'ci'}">${lr.helocBal>0?f(lr.helocBal):'—'}</td>
       <td class="${lr.termBal>0?'cr':'ci'}">${lr.termBal>0.01?f(lr.termBal):'—'}</td>
     </tr>`;
   });
   h += '</tbody>';
-  document.getElementById('tbl').innerHTML = h;
-
-  // ── Tax formula panel ──
-  const panel = document.getElementById('tax-panel');
-  const aprRows = filt.filter(r => r.isTax && r.taxCash !== 0);
-  if (aprRows.length > 0) {
-    let ph = '<div class="tp-title">◆ 4月税款计算公式</div>';
-    aprRows.forEach(r => {
-      const prevYr = r.yr - 1;
-      const py = rows.filter(x => x.yr === prevYr);
-      if (!py.length) return;
-      const rty = py.reduce((s,x) => s + x.rentalTaxable,   0);
-      const dy  = py.reduce((s,x) => s + x.div,             0);
-      const hy  = py.reduce((s,x) => s + x.hint,            0);
-      const ty  = py.reduce((s,x) => s + (x.termInt||0),    0);
-      const rt = rty*p.mar, dt = dy*p.divEff;
-      const hs = hy*p.mar, ts = ty*p.mar;
-      const net = rt+dt-hs-ts;
-      const mos = py.length;
-      const rn = p.rent - p.ptaxMAcc - p.insur - p.maint;
-      const sign = net >= 0;
-      ph += `<div class="tp-yr">${prevYr}年税款 → ${r.yr}年4月1日&nbsp;
-        <strong class="${sign?'tpr':'tpg'}">${sign?'缴税':'退税'} ${f(Math.abs(net))}</strong></div>
-      <div class="tp-grid">
-        <div class="tp-block">
-          <div class="tp-bl">① 租金净应税收入（T776）</div>
-          <div class="tp-row"><span>月净租金</span><span>${f(p.rent)}−${f(p.ptaxMAcc,0)}−${f(p.insur)}−${f(p.maint)}=${f(rn,0)}</span></div>
-          <div class="tp-row"><span>× ${mos}个月</span><span>${f(rty)}</span></div>
-          <div class="tp-row tp-sub"><span>× 边际税率${(p.mar*100).toFixed(1)}%</span><span class="tpr">${f(rt)}</span></div>
-        </div>
-        <div class="tp-block">
-          <div class="tp-bl">② XEI Eligible Dividend 税</div>
-          <div class="tp-row"><span>全年实收股息</span><span>${f(dy,1)}</span></div>
-          <div class="tp-row"><span>× Gross-up 1.38</span><span>${f(dy*1.38,1)}</span></div>
-          <div class="tp-row"><span>× ${(p.mar*100).toFixed(1)}% − 联邦DTC − ON DTC</span><span></span></div>
-          <div class="tp-row tp-sub"><span>净股息税（有效税率~${(p.divEff*100).toFixed(1)}%）</span><span class="tpr">${f(dt,1)}</span></div>
-        </div>
-        ${hy>0?`<div class="tp-block shield">
-          <div class="tp-bl">③ HELOC利息税盾（Line 22100）</div>
-          <div class="tp-row"><span>全年HELOC利息</span><span>${f(hy,1)}</span></div>
-          <div class="tp-row tp-sub"><span>× ${(p.mar*100).toFixed(1)}%（节税）</span><span class="tpg">−${f(hs,1)}</span></div>
-        </div>`:''}
-        ${ty>0?`<div class="tp-block shield">
-          <div class="tp-bl">④ Term贷款利息税盾（Line 22100）</div>
-          <div class="tp-row"><span>加拿大惯例：半年复利（SAC）</span><span></span></div>
-          <div class="tp-row"><span>全年Term利息</span><span>${f(ty,1)}</span></div>
-          <div class="tp-row tp-sub"><span>× ${(p.mar*100).toFixed(1)}%（节税）</span><span class="tpg">−${f(ts,1)}</span></div>
-        </div>`:''}
-        <div class="tp-block total">
-          <div class="tp-bl">合计</div>
-          <div class="tp-row"><span>租金税</span><span>${f(rt)}</span></div>
-          <div class="tp-row"><span>＋ 股息税</span><span>${f(dt,1)}</span></div>
-          ${hy>0?`<div class="tp-row"><span>－ HELOC利息税盾</span><span class="tpg">−${f(hs,1)}</span></div>`:''}
-          ${ty>0?`<div class="tp-row"><span>－ Term利息税盾</span><span class="tpg">−${f(ts,1)}</span></div>`:''}
-          <div class="tp-row tp-sub ${sign?'tpr':'tpg'}"><span>${sign?'应缴':'应退'}</span><span>${f(Math.abs(net))}</span></div>
-        </div>
-      </div>`;
-    });
-    panel.innerHTML = ph; panel.style.display = 'block';
-  } else {
-    panel.innerHTML = ''; panel.style.display = 'none';
-  }
+  g('tbl').innerHTML = h;
 }
 
-// ── Render Chart ──
-function renderChart(rows) {
-  const maxA = Math.max(...rows.map(r => Math.abs(r.netCF)), 1);
-  const maxX = Math.max(...rows.map(r => r.xeiVal), 1);
-  const CH = 96;
-  const bEl = document.getElementById('bars');
-  const xEl = document.getElementById('xlbls');
-  const yEl = document.getElementById('yaxis');
-  bEl.innerHTML = ''; xEl.innerHTML = ''; yEl.innerHTML = '';
+/* ══════════════════════════════════════════
+   RENDER — TAX PANEL
+══════════════════════════════════════════ */
+function renderTaxPanel(rows) {
+  const p   = PARAMS;
+  const mar = p.marginal_tax_rate / 100;
+  const divEff = Math.max(0, 1.38*mar - 1.38*(0.150198+0.10));
+  const filt    = filterRows(rows);
+  const aprRows = filt.filter(r => r.isTax && r.taxCash !== 0);
+  const panel   = g('tax-panel');
+  if (!aprRows.length) { panel.innerHTML=''; panel.style.display='none'; return; }
 
-  [f(maxA), '$0', ''].forEach(l => {
-    const d = document.createElement('div'); d.className = 'ya-l'; d.textContent = l; yEl.appendChild(d);
+  let ph = '<div class="tp-title">◆ 4月税款计算明细（按所属年度）</div>';
+  aprRows.forEach(r => {
+    const prevYr = r.yr - 1;
+    const td = TAX_BREAKDOWN[prevYr];
+    if (!td) return;
+    const sign = td.net >= 0;
+    ph += `
+    <div class="tp-yr">${prevYr}年税款 → ${r.yr}年4月30日&nbsp;
+      <strong class="${sign?'tpr':'tpg'}">${sign?'应缴':'应退'} ${f(Math.abs(td.net))}</strong>
+    </div>
+    <div class="tp-grid">
+      <div class="tp-block">
+        <div class="tp-bl">① 净租金收入税（T776）</div>
+        <div class="tp-row"><span>年净租金</span><span>${f(td.rentalTaxable,0)}</span></div>
+        <div class="tp-row"><span>（租金 − 房产税摊销 − 保险 − 维护）</span></div>
+        <div class="tp-row tp-sub"><span>× 边际 ${(mar*100).toFixed(1)}%</span><span class="tpr">${f(td.rentalTax,1)}</span></div>
+      </div>
+      <div class="tp-block">
+        <div class="tp-bl">② XEI 合格股息税（Eligible Div）</div>
+        <div class="tp-row"><span>年XEI股息</span><span>${f(td.xeiDiv,2)}</span></div>
+        <div class="tp-row"><span>Gross-up 1.38 →</span><span>${f(td.xeiDiv*1.38,2)}</span></div>
+        <div class="tp-row"><span>联邦DTC 15.0198% + 安省DTC 10%</span></div>
+        <div class="tp-row tp-sub"><span>有效税率 ${(divEff*100).toFixed(2)}%</span><span class="${td.xeiTax>0?'tpr':'tpg'}">${td.xeiTax>0?f(td.xeiTax,2):'−'+f(Math.abs(td.xeiTax),2)}</span></div>
+      </div>
+      ${td.otherDiv>0?`
+      <div class="tp-block">
+        <div class="tp-bl">③ XEQT/QQQ/SHV 外收入税</div>
+        <div class="tp-row"><span>XEQT+QQQ+SHV分红合计</span><span>${f(td.otherDiv,2)}</span></div>
+        <div class="tp-row"><span>（视为外国收入/普通收入）</span></div>
+        <div class="tp-row tp-sub"><span>× 边际 ${(mar*100).toFixed(1)}%</span><span class="tpr">${f(td.otherDivTax,2)}</span></div>
+      </div>`:''}
+      ${td.helocInt>0?`
+      <div class="tp-block shield">
+        <div class="tp-bl">④ HELOC利息税盾（Line 22100）</div>
+        <div class="tp-row"><span>年HELOC利息</span><span>${f(td.helocInt,2)}</span></div>
+        <div class="tp-row tp-sub"><span>× ${(mar*100).toFixed(1)}% 节税</span><span class="tpg">−${f(td.helocShield,2)}</span></div>
+      </div>`:''}
+      ${td.termInt>0?`
+      <div class="tp-block shield">
+        <div class="tp-bl">⑤ TERM利息税盾（Line 22100）</div>
+        <div class="tp-row"><span>年TERM利息（SAC半年复利）</span><span>${f(td.termInt,2)}</span></div>
+        <div class="tp-row tp-sub"><span>× ${(mar*100).toFixed(1)}% 节税</span><span class="tpg">−${f(td.termShield,2)}</span></div>
+      </div>`:''}
+      <div class="tp-block total">
+        <div class="tp-bl">年度合计</div>
+        <div class="tp-row"><span>① 租金税</span><span class="tpr">${f(td.rentalTax,1)}</span></div>
+        <div class="tp-row"><span>② XEI合格股息税</span><span class="${td.xeiTax>=0?'tpr':'tpg'}">${td.xeiTax>=0?'':'-'}${f(Math.abs(td.xeiTax),1)}</span></div>
+        ${td.otherDiv>0?`<div class="tp-row"><span>③ 其他分红税</span><span class="tpr">${f(td.otherDivTax,1)}</span></div>`:''}
+        ${td.helocInt>0?`<div class="tp-row"><span>④ HELOC税盾</span><span class="tpg">−${f(td.helocShield,1)}</span></div>`:''}
+        ${td.termInt>0?`<div class="tp-row"><span>⑤ TERM税盾</span><span class="tpg">−${f(td.termShield,1)}</span></div>`:''}
+        <div class="tp-row tp-sub ${sign?'tpr':'tpg'}">
+          <span>${sign?'应缴':'应退'}</span><span>${f(Math.abs(td.net))}</span>
+        </div>
+      </div>
+    </div>`;
   });
+  panel.innerHTML = ph; panel.style.display='block';
+}
 
-  rows.forEach((r, i) => {
-    const ph = r.netCF > 0 ? Math.max(1, (r.netCF/maxA)*CH*0.85) : 0;
-    const nh = r.netCF < 0 ? Math.max(1, (Math.abs(r.netCF)/maxA)*CH*0.85) : 0;
-    const xh = Math.max(1, (r.xeiVal/maxX)*CH*0.35);
+/* ══════════════════════════════════════════
+   RENDER — TAX SUMMARY (bottom of page)
+══════════════════════════════════════════ */
+function renderTaxSummary() {
+  const el = g('tax-summary');
+  const years = Object.keys(TAX_BREAKDOWN).map(Number).sort();
+  if (!years.length) { el.innerHTML=''; return; }
 
-    const col = document.createElement('div');
-    col.className = 'bar-col';
-    col.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;position:relative;min-width:0;height:'+CH+'px;';
-    col.title = r.label+'\n净现金流: '+f(r.netCF)+'\nXEI市值: '+f(r.xeiVal);
+  const p      = PARAMS;
+  const mar    = p.marginal_tax_rate / 100;
+  const divEff = Math.max(0, 1.38*mar - 1.38*(0.150198+0.10));
 
-    const xb = document.createElement('div');
-    xb.className = 'bxei'; xb.style.height = xh+'px'; col.appendChild(xb);
-    if (ph > 0) { const b = document.createElement('div'); b.className = 'bpos'; b.style.height = ph+'px'; col.appendChild(b); }
-    const sp = document.createElement('div'); sp.style.cssText = 'height:1px;width:100%;background:var(--bdr2);flex-shrink:0;'; col.appendChild(sp);
-    if (nh > 0) { const b = document.createElement('div'); b.className = 'bneg'; b.style.height = nh+'px'; col.appendChild(b); }
+  const sum = k => years.reduce((s,y)=>s+(TAX_BREAKDOWN[y][k]||0),0);
+  const totRentalTax   = sum('rentalTax');
+  const totXeiTax      = sum('xeiTax');
+  const totOtherDivTax = sum('otherDivTax');
+  const totHelocShield = sum('helocShield');
+  const totTermShield  = sum('termShield');
+  const totNet         = sum('net');
+  const totShield      = totHelocShield + totTermShield;
+  const totSign        = totNet >= 0;
+
+  // ── KPI strip ──
+  const kpiHtml = [
+    ['5年累计税款',       f(totNet),            totNet>=0?'r':'g'],
+    ['年均税款',          f(totNet/years.length),totNet>=0?'r':'g'],
+    ['XEI 合格股息税',   f(totXeiTax),          'o'],
+    ['其他分红税',        f(totOtherDivTax),     'o'],
+    ['净租金税',          f(totRentalTax),        'o'],
+    ['利息税盾合计',      f(totShield),           'g'],
+  ].map(([l,v,c])=>`<div class="tskpi"><div class="tskl">${l}</div><div class="tskv ${c}">${v}</div></div>`).join('');
+
+  // ── Summary table ──
+  const summaryRows = years.map(yr => {
+    const td = TAX_BREAKDOWN[yr]; const sign = td.net>=0;
+    return `<tr>
+      <td>${yr}</td>
+      <td>${f(td.rentalTaxable,0)}</td><td class="tsr">${f(td.rentalTax,1)}</td>
+      <td>${f(td.xeiDiv,1)}</td><td class="${td.xeiTax>=0?'tsr':'tsg'}">${td.xeiTax>=0?'':'-'}${f(Math.abs(td.xeiTax),1)}</td>
+      <td>${f(td.otherDiv,1)}</td><td class="tsr">${f(td.otherDivTax,1)}</td>
+      <td class="tsg">${td.helocInt>0?'−'+f(td.helocShield,1):'—'}</td>
+      <td class="tsg">${td.termInt>0?'−'+f(td.termShield,1):'—'}</td>
+      <td class="${sign?'tsr':'tsg'}" style="font-weight:700">${sign?'缴':'退'} ${f(Math.abs(td.net))}</td>
+    </tr>`;
+  }).join('');
+  const totRow = `<tr class="ts-tot">
+    <td>合计</td>
+    <td>—</td><td class="tsr">${f(totRentalTax,1)}</td>
+    <td>—</td><td class="${totXeiTax>=0?'tsr':'tsg'}">${totXeiTax>=0?'':'-'}${f(Math.abs(totXeiTax),1)}</td>
+    <td>—</td><td class="tsr">${f(totOtherDivTax,1)}</td>
+    <td class="tsg">−${f(totHelocShield,1)}</td><td class="tsg">−${f(totTermShield,1)}</td>
+    <td class="${totSign?'tsr':'tsg'}" style="font-weight:700">${totSign?'缴':'退'} ${f(Math.abs(totNet))}</td>
+  </tr>`;
+
+  // ── Helper: one calc row ──
+  const cr  = (lbl, val, cls='')  => `<div class="ts-cr ${cls}"><span>${lbl}</span><span>${val}</span></div>`;
+  const sub = (lbl, val)           => cr(lbl, val, 'sub');
+  const res = (lbl, val, shield=false) => cr(lbl, val, 'res'+(shield?' shield':''));
+
+  // ── Detailed year cards ──
+  const detailCards = years.map(yr => {
+    const td   = TAX_BREAKDOWN[yr];
+    const sign = td.net >= 0;
+    const mos  = td.months || 12;
+    const rm   = td.rentalMonths || 0;
+
+    // ① Rental income tax
+    const secRental = `
+    <div class="ts-section">
+      <div class="ts-sec-hdr">
+        <span class="ts-sec-label">① 净租金所得税（T776）</span>
+        <span class="ts-sec-amt ${td.rentalTax>0?'pay':'zero'}">${td.rentalTax>0?'税款 '+f(td.rentalTax,2):'无租金'}</span>
+      </div>
+      <div class="ts-calc">
+        ${rm>0?`
+        ${cr('租金收入', f(+p.rent)+' × '+rm+'月 = '+f(td.rentalGross,0))}
+        ${cr('减：房产税摊销', '−'+f(+p.ptax_annual/12,0)+' × '+rm+'月 = −'+f(td.ptaxAcc,0))}
+        ${cr('减：保险',       '−'+f(+p.insur)+' × '+rm+'月 = −'+f(td.insurAcc,0))}
+        ${cr('减：维护',       '−'+f(+p.maint)+' × '+rm+'月 = −'+f(td.maintAcc,0))}
+        ${sub('= 应税净租金收入', f(td.rentalTaxable,0))}
+        ${res('× 边际税率 '+(mar*100).toFixed(1)+'%', '= '+f(td.rentalTax,2))}`
+        : cr('本年无租金收入（租客尚未入住）', '$0')}
+      </div>
+    </div>`;
+
+    // ② XEI eligible dividend
+    const secXEI = td.xeiDiv > 0.001 ? `
+    <div class="ts-section">
+      <div class="ts-sec-hdr">
+        <span class="ts-sec-label">② XEI 合格股息（Eligible Dividend）</span>
+        <span class="ts-sec-amt ${td.xeiTax>=0?'pay':'shield'}">${td.xeiTax>=0?'税款 '+f(td.xeiTax,2):'退税 '+f(-td.xeiTax,2)}</span>
+      </div>
+      <div class="ts-calc">
+        ${cr('年 XEI 实收股息', f(td.xeiDiv,2))}
+        ${cr('× Gross-up 1.38 → 应税毛额', f(td.xeiGrossUp,2))}
+        ${cr('× 边际税率 '+(mar*100).toFixed(1)+'% → 毛税', f(td.xeiGrossTax,2))}
+        ${cr('− 联邦股息税抵 DTC（15.0198%）', '−'+f(td.fedDTC,2))}
+        ${cr('− 安省股息税抵 DTC（10.0%）', '−'+f(td.onDTC,2))}
+        ${res('净股息税 / 有效税率 '+(divEff*100).toFixed(2)+'%',
+              (td.xeiTax>=0?'= ':'= −')+f(Math.abs(td.xeiTax),2), td.xeiTax<0)}
+      </div>
+    </div>` : '';
+
+    // ③ Other dividends
+    const secOther = td.otherDiv > 0.001 ? `
+    <div class="ts-section">
+      <div class="ts-sec-hdr">
+        <span class="ts-sec-label">③ XEQT / QQQ / SHV 分红（普通/外国收入）</span>
+        <span class="ts-sec-amt pay">税款 ${f(td.otherDivTax,2)}</span>
+      </div>
+      <div class="ts-calc">
+        ${td.xeqtDiv>0.001 ? cr('XEQT 分红', f(td.xeqtDiv,2)) : ''}
+        ${td.qqqDiv >0.001 ? cr('QQQ 分红',  f(td.qqqDiv,2))  : ''}
+        ${td.shvDiv >0.001 ? cr('SHV 分红',  f(td.shvDiv,2))  : ''}
+        ${sub('合计分红（全额计入应税收入）', f(td.otherDiv,2))}
+        ${res('× 边际税率 '+(mar*100).toFixed(1)+'%', '= '+f(td.otherDivTax,2))}
+      </div>
+    </div>` : '';
+
+    // ④ Interest shield
+    const totalInt    = td.helocInt + td.termInt;
+    const totalShield = td.helocShield + td.termShield;
+    const secShield   = totalInt > 0.001 ? `
+    <div class="ts-section">
+      <div class="ts-sec-hdr">
+        <span class="ts-sec-label">④ 投资借款利息税盾（Line 22100）</span>
+        <span class="ts-sec-amt shield">节税 −${f(totalShield,2)}</span>
+      </div>
+      <div class="ts-calc">
+        ${td.helocInt>0.001?cr('HELOC 年利息（日复利→月等效，余额×月利率×12）', f(td.helocInt,2)):''}
+        ${td.termInt >0.001?cr('TERM 年利息（SAC半年复利→月等效，余额×月利率×12）',f(td.termInt,2)):''}
+        ${sub('合计可抵扣利息（Line 22100）', f(totalInt,2))}
+        ${res('× 边际税率 '+(mar*100).toFixed(1)+'% → 节税', '= −'+f(totalShield,2), true)}
+      </div>
+    </div>` : '';
+
+    const grossTax = td.grossTax || (td.rentalTax+td.xeiTax+td.otherDivTax);
+    return `
+    <div class="ts-yr-card">
+      <div class="ts-yr-hdr">
+        <span class="ts-yr-title">${yr} 年度（共 ${mos} 个月，收租 ${rm} 个月）</span>
+        <span class="ts-yr-net ${sign?'pay':'refund'}">${sign?'↑缴':'↓退'} ${f(Math.abs(td.net))}</span>
+      </div>
+      <div class="ts-sections">${secRental}${secXEI}${secOther}${secShield}</div>
+      <div class="ts-yr-foot">
+        <span class="ts-yr-foot-lbl">
+          毛税 ${f(grossTax,1)} − 利息税盾 ${f(totalShield,1)} =
+        </span>
+        <span class="ts-yr-foot-val ${sign?'pay':'refund'}">${sign?'应缴':'应退'} ${f(Math.abs(td.net))}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+  <div class="tsec">
+    <div class="tsec-hdr">
+      <span class="tsec-title">📋 年度税务推演（T1 申报概览）· 逐项步骤明细</span>
+      <span class="tsec-meta">边际税率 ${(mar*100).toFixed(1)}% · XEI合格股息有效税率 ${(divEff*100).toFixed(2)}% · 安省</span>
+    </div>
+    <div class="tsec-kpis">${kpiHtml}</div>
+    <div class="tsec-scroll">
+      <table class="ts-tbl">
+        <thead><tr>
+          <th>年份</th>
+          <th>净租金<span class="sub">应税收入</span></th>
+          <th>① 租金税<span class="sub">×边际税率</span></th>
+          <th>XEI股息<span class="sub">合格股息</span></th>
+          <th>② XEI税<span class="sub">Gross-up+DTC</span></th>
+          <th>XEQT/QQQ/SHV<span class="sub">外国/普通收入</span></th>
+          <th>③ 其他分红税<span class="sub">×边际税率</span></th>
+          <th>④ HELOC税盾<span class="sub">Line 22100</span></th>
+          <th>⑤ TERM税盾<span class="sub">Line 22100</span></th>
+          <th>净税款<span class="sub">翌年4月缴/退</span></th>
+        </tr></thead>
+        <tbody>${summaryRows}${totRow}</tbody>
+      </table>
+    </div>
+    <div class="ts-detail">${detailCards}</div>
+    <div class="tsec-legend">
+      <div class="ts-leg-item">
+        <strong>① 净租金（T776）</strong>
+        应税额 = 租金 − 房产税摊销 − 保险 − 维护，只计算实际收租月份。按边际税率 ${(mar*100).toFixed(1)}% 征税。
+      </div>
+      <div class="ts-leg-item">
+        <strong>② XEI 合格股息（Eligible Dividend）</strong>
+        Gross-up 1.38 → 扣联邦 DTC 15.0198% + 安省 DTC 10%，有效税率 ${(divEff*100).toFixed(2)}%。低边际税率可能为负（实为退税抵其他税）。
+      </div>
+      <div class="ts-leg-item">
+        <strong>③ XEQT / QQQ / SHV</strong>
+        XEQT 含外国股息，QQQ/SHV 为美国 ETF 分配（视为外国收入），保守按边际税率 ${(mar*100).toFixed(1)}% 全额处理。
+      </div>
+      <div class="ts-leg-item">
+        <strong>④ 利息税盾（Line 22100）</strong>
+        投资借款利息全额可抵扣，节税 = 利息 × 边际税率。HELOC 日复利换算，TERM 半年复利（SAC）换算月利率。
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════════
+   RENDER — CHART
+══════════════════════════════════════════ */
+function renderChart(rows) {
+  const maxA = Math.max(...rows.map(r=>Math.abs(r.netCF)),1);
+  const maxV = Math.max(...rows.map(r=>r.totPV),1);
+  const CH=90;
+  const bEl=g('bars'),xEl=g('xlbls'),yEl=g('yaxis');
+  bEl.innerHTML=''; xEl.innerHTML=''; yEl.innerHTML='';
+  [f(maxA),'$0',''].forEach(l=>{ const d=document.createElement('div'); d.className='ya-l'; d.textContent=l; yEl.appendChild(d); });
+  rows.forEach((r,i)=>{
+    const ph=r.netCF>0?Math.max(1,(r.netCF/maxA)*CH*.85):0;
+    const nh=r.netCF<0?Math.max(1,(Math.abs(r.netCF)/maxA)*CH*.85):0;
+    const vh=Math.max(1,(r.totPV/maxV)*CH*.35);
+    const col=document.createElement('div');
+    col.className='bar-col';
+    col.title=r.label+'\n净现金: '+f(r.netCF)+'\n组合值: '+f(r.totPV);
+    const xb=document.createElement('div'); xb.className='bpv'; xb.style.height=vh+'px'; col.appendChild(xb);
+    if(ph>0){const b=document.createElement('div');b.className='bpos';b.style.height=ph+'px';col.appendChild(b);}
+    const sp=document.createElement('div');sp.style.cssText='height:1px;width:100%;background:var(--bdr2);flex-shrink:0;';col.appendChild(sp);
+    if(nh>0){const b=document.createElement('div');b.className='bneg';b.style.height=nh+'px';col.appendChild(b);}
     bEl.appendChild(col);
-
-    const lbl = document.createElement('div'); lbl.className = 'xl';
-    lbl.textContent = i % 6 === 0 ? r.label.replace('年','').replace('月','') : '';
+    const lbl=document.createElement('div');lbl.className='xl';
+    lbl.textContent=i%6===0?r.label.replace('年','').replace('月',''):'';
     xEl.appendChild(lbl);
   });
 }
 
-// ── Render Note ──
-function renderNote(rows, p) {
-  const last = rows[TOTAL_MONTHS - 1];
-  let txt = '';
-  if (p.heloc === 0) {
-    txt = `零杠杆模式：无HELOC借款，无建仓支出。月净现金流 = 月薪${f(p.salary)}+租金${f(p.rent)}+股息 − 保险${f(p.insur)}−维护${f(p.maint)}−房产税摊销${f(p.ptaxMAcc,0)}。5年末XEI市值 <strong>${f(last.xeiVal)}</strong>，含初始资本增值 <strong>${f(last.xeiVal-p.initVal)}</strong>（未实现）。`;
-  } else {
-    const netWorth = last.xeiVal - last.helocBal;
-    txt = `HELOC ${f(p.heloc)}（@${p.nomRate.toFixed(2)}%），7个月建仓，月买入 ${f(p.dcaM)}。建仓完成后年利息约 <strong>${f(p.heloc*p.ear,0)}</strong>，利息税盾年节税 <strong>${f(p.heloc*p.ear*p.mar,0)}</strong>。5年末 XEI市值 <strong>${f(last.xeiVal)}</strong>，扣HELOC负债 <strong>${f(last.helocBal)}</strong>，净资产 <strong>${f(netWorth)}</strong>。房产年支出：保险${f(p.insur*12)}+维护${f(p.maint*12)}+房产税${f(p.ptaxYr)} = <strong>${f((p.insur+p.maint)*12+p.ptaxYr)}</strong>。`;
-  }
-  document.getElementById('note').innerHTML = txt;
+/* ══════════════════════════════════════════
+   RENDER — SUMMARY + NOTE
+══════════════════════════════════════════ */
+function renderSummary(rows, lastPending, termPayment, termPoolUsed) {
+  const last=rows[rows.length-1];
+  const totDebt=last.helocBal+last.termBal;
+  const termPoolRem = Math.max(0, +PARAMS.term_amt - (termPoolUsed||0));
+  g('summary').innerHTML=`
+    <div class="mk"><div class="mk-lbl">组合总值（5年末）</div><div class="mk-val b">${f(last.totPV)}</div></div>
+    <div class="mk"><div class="mk-lbl">HELOC余额</div><div class="mk-val r">${last.helocBal>0?f(last.helocBal):'—'}</div></div>
+    <div class="mk"><div class="mk-lbl">TERM余额（按揭剩余）</div><div class="mk-val r">${last.termBal>0?f(last.termBal):'—'}</div></div>
+    <div class="mk"><div class="mk-lbl">TERM固定月供</div><div class="mk-val o">${termPayment>0?f(termPayment,2):'—'}</div></div>
+    <div class="mk"><div class="mk-lbl">TERM贷款池（未建仓）</div><div class="mk-val ${termPoolRem>0?'b':'ci'}">${PARAMS.term_amt>0?f(termPoolRem):'—'}</div></div>
+    <div class="mk"><div class="mk-lbl">净资产（扣负债）</div><div class="mk-val ${last.totPV-totDebt>=0?'g':'r'}">${f(last.totPV-totDebt)}</div></div>
+    <div class="mk"><div class="mk-lbl">累计净现金流</div><div class="mk-val ${last.cumNCF>=0?'g':'r'}">${f(last.cumNCF)}</div></div>
+    <div class="mk"><div class="mk-lbl">窗口外待付税</div><div class="mk-val o">${f(lastPending)}</div></div>
+  `;
+}
+function renderNote(rows) {
+  const p=PARAMS, last=rows[rows.length-1];
+  const totDiv=rows.reduce((s,r)=>s+r.totDiv,0);
+  const totHint=rows.reduce((s,r)=>s+r.helocInt,0);
+  const puByTicker={};
+  PURCHASES.forEach(pu=>{ if(!puByTicker[pu.ticker])puByTicker[pu.ticker]=0; puByTicker[pu.ticker]+=+pu.shares*+pu.price; });
+  const puSummary=Object.entries(puByTicker).map(([k,v])=>`<strong>${k}</strong> ${f(v)}`).join(' · ');
+  g('note').innerHTML=`推演期间建仓：${puSummary||'无'}。5年末组合总值 <strong>${f(last.totPV)}</strong>，累计分红 <strong>${f(totDiv)}</strong>，HELOC累计利息 <strong>${f(totHint)}</strong>，累计净现金流 <strong>${f(last.cumNCF)}</strong>。`;
 }
 
-// Store last computed params for tab switching
-let lastP = null;
-
-// ── Year tab ──
-function setYr(y) {
-  curYr = y;
-  document.querySelectorAll('.yb').forEach((b, i) => b.classList.toggle('on', i === y));
-  if (lastP) renderTable(SIM, lastP);
-}
-
-// ── Main render ──
+/* ══════════════════════════════════════════
+   MAIN RENDER
+══════════════════════════════════════════ */
 function render() {
-  const p = getP();
-  lastP = p;
-  updateLabels(p);
-  const { rows } = simulate(p);
+  readFormToParams();
+  updateLabels();
+  const { rows, lastPending, termPayment, termPoolUsed, taxBreakdown } = simulate();
   SIM = rows;
-  renderKPIs(rows, p);
-  renderSummary(rows, p);
+  TAX_BREAKDOWN = taxBreakdown;
+  renderKPIs(rows);
   buildTabs(rows);
-  renderTable(rows, p);
+  renderCashflowTable(rows);
+  renderTaxPanel(rows);
   renderChart(rows);
-  renderNote(rows, p);
+  renderSummary(rows, lastPending, termPayment, termPoolUsed);
+  renderNote(rows);
+  renderTaxSummary();
+  renderPurchaseTable(termPoolUsed);
 }
 
-// ── Wire all inputs ──
-const ALL_INPUTS = ['v-start','v-salary','v-rent','v-insur','v-maint','v-ptax',
-                    'v-p0','v-shares','v-dps','v-mg','v-heloc','v-rate',
-                    'v-term-amt','v-term-rate','v-term-amort','v-mar'];
+/* ══════════════════════════════════════════
+   PURCHASE MODAL
+══════════════════════════════════════════ */
+function openPuAdd() {
+  editPuId=null;
+  g('pu-modal-title').textContent='添加建仓记录';
+  g('pf-month').value=''; g('pf-ticker').value='XEI';
+  g('pf-shares').value=''; g('pf-price').value='';
+  g('pf-source').value='HELOC'; g('pf-notes').value='';
+  g('pu-cost-display').textContent='—';
+  g('pu-overlay').classList.remove('hidden');
+  setTimeout(()=>g('pf-month').focus(),100);
+}
+function openPuEdit(id) {
+  const pu = PURCHASES.find(p=>+p.id===+id);
+  if (!pu) return;
+  editPuId=id;
+  g('pu-modal-title').textContent='编辑建仓记录';
+  g('pf-month').value=pu.purchase_month||'';
+  g('pf-ticker').value=pu.ticker||'XEI';
+  g('pf-shares').value=pu.shares||'';
+  g('pf-price').value=pu.price||'';
+  g('pf-source').value=pu.source||'HELOC';
+  g('pf-notes').value=pu.notes||'';
+  calcPuCost();
+  g('pu-overlay').classList.remove('hidden');
+}
+function closePuModal() { g('pu-overlay').classList.add('hidden'); editPuId=null; }
+function calcPuCost() {
+  const s=parseFloat(g('pf-shares').value)||0;
+  const p=parseFloat(g('pf-price').value)||0;
+  g('pu-cost-display').textContent = s&&p ? f(s*p)+' ('+s.toLocaleString()+'股 × '+f(p,2)+')' : '—';
+}
+async function savePurchase() {
+  const month  = g('pf-month').value.trim();
+  const ticker = g('pf-ticker').value;
+  const shares = parseFloat(g('pf-shares').value);
+  const price  = parseFloat(g('pf-price').value);
+  const source = g('pf-source').value;
+  const notes  = g('pf-notes').value.trim();
+  if (!month) { toast('请选择购入月份','err'); return; }
+  if (!shares||shares<=0) { toast('请输入有效份额','err'); return; }
+  if (!price||price<=0)   { toast('请输入有效价格','err'); return; }
+  const row = { purchase_month:month, ticker, shares, price, source, notes:notes||null };
+  try {
+    if (editPuId) {
+      await updatePurchase(editPuId, row);
+      toast('记录已更新','ok');
+    } else {
+      await insertPurchase(row);
+      toast('建仓记录已添加','ok');
+    }
+    closePuModal();
+    render();
+  } catch(e) {
+    toast('保存失败: '+e.message,'err');
+  }
+}
+
+/* ══════════════════════════════════════════
+   DELETE
+══════════════════════════════════════════ */
+function askDel(id) {
+  const pu=PURCHASES.find(p=>+p.id===+id);
+  if(!pu)return;
+  delPuId=id;
+  g('del-tgt').textContent=`${pu.purchase_month} · ${pu.ticker} · ${(+pu.shares).toLocaleString()}股 @${f(+pu.price,2)} · ${pu.source}`;
+  g('del-overlay').classList.remove('hidden');
+}
+function cancelDel() { delPuId=null; g('del-overlay').classList.add('hidden'); }
+async function confirmDel() {
+  if(!delPuId)return;
+  try {
+    await deletePurchase(delPuId);
+    delPuId=null; g('del-overlay').classList.add('hidden');
+    toast('记录已删除','ok');
+    render();
+  } catch(e) {
+    toast('删除失败: '+e.message,'err');
+  }
+}
+
+/* ══════════════════════════════════════════
+   SIDEBAR TOGGLE + RESIZE
+══════════════════════════════════════════ */
+function toggleSide() {
+  const btn=g('side-toggle'), body=g('side-body');
+  const open=body.classList.toggle('open');
+  btn.classList.toggle('open',open);
+}
+function handleResize() {
+  const body=g('side-body'), btn=g('side-toggle');
+  if (window.innerWidth>720) { body.classList.add('open'); btn.classList.add('open'); }
+}
+window.addEventListener('resize',handleResize);
+
+/* ══════════════════════════════════════════
+   INPUT WIRING
+══════════════════════════════════════════ */
+const ALL_INPUTS = [
+  'v-start','v-rent-start','v-salary','v-rent','v-other-annual','v-insur','v-maint','v-ptax','v-mar',
+  'v-heloc-limit','v-heloc-rate','v-term-amt','v-term-start','v-term-rate','v-term-amort',
+  'v-xei-price','v-xei-shares','v-xei-dps','v-xei-mg',
+  'v-xeqt-price','v-xeqt-shares','v-xeqt-dps','v-xeqt-mg',
+  'v-qqq-price','v-qqq-shares','v-qqq-dps','v-qqq-mg',
+  'v-shv-price','v-shv-shares','v-shv-dps','v-shv-mg',
+];
 ALL_INPUTS.forEach(id => {
-  document.getElementById(id).addEventListener('input', render);
+  const el=g(id); if(el) el.addEventListener('input', render);
+});
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') { closePuModal(); cancelDel(); }
 });
 
-// ── Init ──
-render();
-
-// ── Mobile sidebar toggle ──
-function toggleSide() {
-  const btn  = document.getElementById('side-toggle');
-  const body = document.getElementById('side-body');
-  const open = body.classList.toggle('open');
-  btn.classList.toggle('open', open);
-}
-
-// On desktop (>680px), always show sidebar body
-function handleResize() {
-  const body = document.getElementById('side-body');
-  const btn  = document.getElementById('side-toggle');
-  if (window.innerWidth > 680) {
-    body.classList.add('open');
-    btn.classList.add('open');
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+async function init() {
+  try {
+    sb = window.supabase.createClient(SB_URL, SB_KEY);
+    setSyncBadge('连接中…');
+    await loadParams();
+    await loadPurchases();
+    handleResize();
+    render();
+    g('loading').style.display='none';
+    setSyncBadge('✓ 已连接');
+  } catch(err) {
+    g('loading').innerHTML=`
+      <div style="color:var(--r);text-align:center;padding:24px;max-width:400px">
+        <p style="font-size:18px;margin-bottom:8px">⚠ 连接失败</p>
+        <p style="font-size:12px;color:var(--ink3)">${esc(err.message)}</p>
+        <p style="font-size:11px;color:var(--ink3);margin-top:8px">请确认 Supabase 表已创建（见 HTML 注释中的 SQL），并检查网络</p>
+      </div>`;
   }
 }
-window.addEventListener('resize', handleResize);
-handleResize(); // run on load
+init();
 </script>
 </body>
 </html>
